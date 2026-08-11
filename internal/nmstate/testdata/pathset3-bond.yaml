@@ -1,0 +1,74 @@
+interfaces:
+  - name: eno1np0
+    type: ethernet
+    state: up
+    ipv4:
+      enabled: false
+    ipv6:
+      enabled: false
+  - name: eno2np1
+    type: ethernet
+    state: up
+    ipv4:
+      enabled: false
+    ipv6:
+      enabled: false
+  - name: eno3np0
+    type: ethernet
+    state: up
+    ipv4:
+      enabled: false
+    ipv6:
+      enabled: false
+  - name: eno4np1
+    type: ethernet
+    state: up
+    ipv4:
+      enabled: false
+    ipv6:
+      enabled: false
+  - name: eno5np0
+    type: ethernet
+    state: up
+    ipv4:
+      enabled: false
+    ipv6:
+      enabled: false
+  - name: eno6np1
+    type: ethernet
+    state: up
+    ipv4:
+      enabled: false
+    ipv6:
+      enabled: false
+  - name: bond0
+    type: bond
+    state: up
+    link-aggregation:
+      mode: active-backup
+      options:
+        miimon: "100"
+        primary: eno5np0
+      port:
+        - eno5np0
+        - eno6np1
+    ipv4:
+      enabled: true
+      dhcp: false
+      address:
+        - ip: 198.51.100.154
+          prefix-length: 24
+    ipv6:
+      enabled: false
+routes:
+  config:
+    - destination: 0.0.0.0/0
+      next-hop-address: 192.0.2.1
+      next-hop-interface: bond0
+      table-id: 254
+dns-resolver:
+  config:
+    server:
+      - 192.0.2.7
+      - 192.0.2.6
+      - 192.0.2.5

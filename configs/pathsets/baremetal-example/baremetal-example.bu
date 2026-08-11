@@ -1,0 +1,33 @@
+# butane --strict baremetal-example.bu > baremetal-example.ign
+# (직접 렌더할 필요는 없습니다. upi-forge ignition이 자동으로 병합합니다.)
+variant: fcos
+# FCOS Butane 1.6.0은 Ignition 3.5.0을 렌더합니다.
+version: 1.6.0
+storage:
+  disks:
+    # 주의: OS 설치 디스크(pathset.yaml의 disk.osDisk)는 절대 포함하지 마세요.
+    - device: /dev/disk/by-path/pci-0000:ae:00.0-nvme-1
+      wipe_table: true
+      partitions:
+        - label: containers-raid-a
+          number: 1
+    - device: /dev/disk/by-path/pci-0000:08:00.0-nvme-1
+      wipe_table: true
+      partitions:
+        - label: containers-raid-b
+          number: 1
+  raid:
+    - name: md-var-lib-containers
+      level: raid1
+      devices:
+        - /dev/disk/by-partlabel/containers-raid-a
+        - /dev/disk/by-partlabel/containers-raid-b
+  filesystems:
+    - device: /dev/md/md-var-lib-containers
+      path: /var/lib/containers
+      format: xfs
+      wipe_filesystem: true
+      with_mount_unit: true
+      mount_options:
+        - defaults
+        - prjquota
