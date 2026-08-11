@@ -1,0 +1,14 @@
+# 빌드 산출물
+bin/
+dist/
+
+# 작업 디렉터리 산출물 (저장소 안에서 실행한 경우)
+*.iso
+*.img
+*.ign
+tmp/
+
+# 비밀 값 — 어떤 경우에도 커밋 금지
+pull-secret*.json
+*.key
+*.pem

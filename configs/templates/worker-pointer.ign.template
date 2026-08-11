@@ -1,0 +1,36 @@
+{
+  "ignition": {
+    "version": "3.5.0",
+    "config": {
+      "merge": [
+        {
+          "source": "__MCS_SOURCE__"
+        }
+      ]
+    },
+    "security": {
+      "tls": {
+        "certificateAuthorities": [
+          {
+            "source": "__MCS_CA_SOURCE__"
+          }
+        ]
+      }
+    }
+  },
+  "storage": {
+    "files": [
+      {
+        "overwrite": true,
+        "path": "/etc/hostname",
+        "user": {
+          "name": "root"
+        },
+        "contents": {
+          "source": "data:text/plain;charset=utf-8,__NODE_FQDN__"
+        },
+        "mode": 420
+      }
+    ]
+  }
+}

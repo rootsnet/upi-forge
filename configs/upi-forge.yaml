@@ -1,0 +1,76 @@
+# upi-forge 공통 설정
+#
+# 이 파일 안의 상대 경로는 모두 이 파일이 있는 디렉터리를 기준으로 해석합니다.
+# 산출물이 쌓이는 workspace.dir만 예외로 현재 작업 디렉터리 기준입니다.
+#
+# 아래 도메인과 IP는 예시입니다. 환경에 맞게 바꿔 사용하세요.
+
+# ── 클러스터 정보 ────────────────────────────────────────────────
+cluster:
+  # 추가할 worker가 접속할 OpenShift 클러스터 도메인
+  domain: "mycluster.example.com"
+  # 비우면 https://api.<domain>:6443 을 사용합니다.
+  # Ignition을 만들기 전에 현재 oc 로그인 대상과 이 주소가 같은지 확인합니다.
+  apiURL: ""
+  # 작업 대상 OpenShift 버전. 비우면 현재 로그인한 클러스터의 버전을 조회합니다.
+  version: ""
+  # Machine Config Server 포트
+  mcsPort: 22623
+
+# ── 레지스트리 정보 ──────────────────────────────────────────────
+registry:
+  # release 이미지 접근에 사용할 pull secret. 저장소에 커밋하지 마세요.
+  pullSecret: "pull-secret.json"
+  # 연결 환경은 quay.io, 단절 환경은 mirror registry를 사용합니다.
+  # 예) mirror.example.com/ocp4
+  registry: "quay.io"
+
+# ── ISO와 rootfs를 제공하는 웹 서버 ──────────────────────────────
+webServer:
+  url: "http://192.0.2.50:8080"
+  path: "/iso"
+
+# ── 산출물이 쌓이는 작업 디렉터리 ────────────────────────────────
+workspace:
+  # 비우면 upi-forge를 실행한 현재 디렉터리를 사용합니다.
+  dir: ""
+  tmpDir: "tmp"
+  fullISO: "coreos-x86_64.iso"
+  minimalISO: "coreos-x86_64-minimal.iso"
+  rootfsImage: "coreos-x86_64-rootfs.img"
+  installer: "coreos-installer"
+
+# ── Ignition 템플릿 ──────────────────────────────────────────────
+templates:
+  workerPointerIgnition: "templates/worker-pointer.ign.template"
+
+# ── pathset(하드웨어 그룹) 선택 ──────────────────────────────────
+# 아래 active만 바꾸면 다른 하드웨어 그룹으로 전환됩니다.
+# 실제 디스크/NIC/노드 값은 pathsets/<이름>/pathset.yaml 에 있습니다.
+pathsets:
+  active: "vm-example"
+  dir: "pathsets"
+
+# ── 로그 ─────────────────────────────────────────────────────────
+logger:
+  debug: false
+  timestamp: false
+
+# ── iDRAC Redfish ────────────────────────────────────────────────
+redfish:
+  # iDRAC 자체 서명 인증서를 허용하려면 false로 둡니다.
+  tlsVerify: false
+  timeoutSeconds: 60
+  # 각 단계 사이 대기 시간(초)입니다.
+  powerOffWaitSeconds: 10
+  mediaSettleSeconds: 5
+  attributeWaitSeconds: 5
+  powerOnWaitSeconds: 10
+
+# ── 외부 명령 ────────────────────────────────────────────────────
+# OpenShift 계열 도구만 외부 명령으로 실행합니다.
+tools:
+  oc: "oc"
+  butane: "butane"
+  # 비우면 작업 디렉터리의 coreos-installer를 사용합니다.
+  coreosInstaller: ""

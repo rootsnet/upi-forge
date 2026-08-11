@@ -1,0 +1,3 @@
+hostname,ip
+worker1.mycluster.example.com,192.0.2.101
+worker2.mycluster.example.com,192.0.2.102

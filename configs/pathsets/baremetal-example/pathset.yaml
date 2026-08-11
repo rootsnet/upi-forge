@@ -1,0 +1,48 @@
+# baremetal-example 하드웨어 그룹 설정
+#
+# 대상: 베어메탈(iDRAC10 탑재 Dell PowerEdge 등).
+# NIC 이름과 디스크 by-path는 다음 두 자료를 함께 보고 실측해 채웁니다.
+#   upi-forge inventory   : iDRAC이 보고하는 NIC/스토리지 인벤토리
+#   upi-forge live-boot   : 라이브 환경의 /sys/class/net, /dev/disk/by-path
+# 값은 예시입니다. 실측한 값으로 바꿔 사용하세요.
+
+name: "baremetal-example"
+description: "베어메탈 / iDRAC10 / NIC 본딩 / NVMe RAID1"
+
+iso:
+  useRootfs: false
+
+disk:
+  # OS 설치 디스크. Butane의 wipe 또는 RAID 대상에 절대 포함하지 마세요.
+  osDisk: "/dev/disk/by-path/pci-0000:3c:00.0-nvme-1"
+
+# 추가 NVMe 2장을 RAID1로 묶어 /var/lib/containers에 마운트하는 예시입니다.
+butane: "baremetal-example.bu"
+
+network:
+  source: "generate"
+  sourceDir: "network-yaml"
+  gateway: "192.0.2.1"
+  prefixLength: 24
+  dns:
+    - "192.0.2.10"
+    - "192.0.2.11"
+  bonding: true
+  activeNIC: "eno1np0"
+  bond:
+    name: "bond0"
+    mode: "active-backup"
+    primary: "eno1np0"
+    standby: "eno2np1"
+    miimon: 100
+
+files:
+  nodes: "nodes.csv"
+  nics: "nics.csv"
+  # hostname,idrac_ip,idrac_id 세 열. 비밀번호는 기록하지 않습니다.
+  idracs: "idracs.csv"
+
+# idracs.csv의 관리 컨트롤러 종류. 생략 시 idrac10이며 현재 유일한 지원
+# 종류입니다. 다른 장비 지원이 추가되면 이 값으로 선택합니다.
+bmc:
+  type: "idrac10"
