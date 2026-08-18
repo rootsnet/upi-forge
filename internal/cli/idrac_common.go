@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -51,7 +52,11 @@ func resolveBMCDriver(ps *config.Pathset) (*bmc.Driver, error) {
 }
 
 // idracTargets는 nodes.csv와 idracs.csv를 읽고 일대일 대응을 검증합니다.
-func idracTargets(ps *config.Pathset, from string) (*csvdata.Nodes, *csvdata.IDRACs, []string, error) {
+// names(NODE 인자)가 있으면 그 노드만, 없으면 from부터 끝까지가 대상입니다.
+func idracTargets(ps *config.Pathset, from string, names []string) (*csvdata.Nodes, *csvdata.IDRACs, []string, error) {
+	if len(names) > 0 && from != "" {
+		return nil, nil, nil, fmt.Errorf("--from과 NODE 인자는 함께 사용할 수 없습니다")
+	}
 	nodes, err := csvdata.LoadNodes(ps.NodesCSV())
 	if err != nil {
 		return nil, nil, nil, err
@@ -63,7 +68,12 @@ func idracTargets(ps *config.Pathset, from string) (*csvdata.Nodes, *csvdata.IDR
 	if err := idracs.MatchNodes(nodes); err != nil {
 		return nil, nil, nil, err
 	}
-	targets, err := nodes.From(from)
+	var targets []string
+	if len(names) > 0 {
+		targets, err = nodes.Select(names...)
+	} else {
+		targets, err = nodes.From(from)
+	}
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -99,37 +109,115 @@ type nodeAction func(ctx context.Context, host string, target csvdata.IDRAC, cli
 // 반드시 프롬프트보다 먼저 출력합니다.
 type nodePreview func(host string, target csvdata.IDRAC)
 
-// forEachBMCNode는 대상 노드를 순서대로 처리합니다.
+// forEachBMCNode는 대상 노드를 처리합니다.
 //
-// 노드마다 "무엇을 할지 출력 -> 비밀번호 숨김 입력 -> 세션 생성 -> 작업 -> 세션 정리"
-// 순서로 진행합니다. 비밀번호를 한 번에 몰아서 받지 않는 이유는, 어떤 장비에
-// 어떤 ISO를 붙이는지 확인한 뒤에 입력하도록 하기 위해서입니다.
-//
-// 중간에 실패하면 이미 성공한 노드의 요청은 취소하지 않고,
+// 기본(순차)은 노드마다 "무엇을 할지 출력 -> 비밀번호 숨김 입력 -> 세션 생성
+// -> 작업 -> 세션 정리" 순서입니다. 비밀번호를 한 번에 몰아서 받지 않는
+// 이유는, 어떤 장비에 어떤 ISO를 붙이는지 확인한 뒤에 입력하도록 하기
+// 위해서입니다. 중간에 실패하면 이미 성공한 노드의 요청은 취소하지 않고,
 // 문제를 고친 뒤 이어서 실행할 명령을 안내합니다.
-func forEachBMCNode(ctx context.Context, app *App, cfg *config.Config, idracs *csvdata.IDRACs,
-	targets []string, commandName string, preview nodePreview, action nodeAction) error {
+//
+// pathset의 bmc.samePassword가 true면 대상 노드와 작업 내용을 모두 보여준 뒤
+// 비밀번호를 한 번만 받습니다("확인 후 입력" 원칙은 유지). bmc.parallel이
+// 2 이상이고 대상이 둘 이상이면 비밀번호를 모두 받은 뒤 병렬로 처리합니다
+// (runParallelBMCNodes 참고).
+// nodeSelected는 대상이 NODE 인자로 지정되었는지 여부입니다. 실패 안내가
+// 갈립니다: 파일 순서 실행은 --from 재개를, NODE 지정 실행은 남은 노드
+// 목록 그대로 재실행을 안내합니다 — NODE 지정 실행에 --from을 안내하면
+// 사용자가 고르지 않은 노드까지 대상이 넓어지기 때문입니다.
+func forEachBMCNode(ctx context.Context, app *App, cfg *config.Config, ps *config.Pathset,
+	idracs *csvdata.IDRACs, targets []string, commandArgs []string, nodeSelected bool,
+	preview nodePreview, action nodeAction) error {
 
+	// 대상의 idracs.csv 항목을 먼저 모두 확인합니다. 작업을 시작한 뒤에
+	// 빠진 항목이 드러나 중간에 멈추지 않게 합니다.
+	entries := make(map[string]csvdata.IDRAC, len(targets))
 	for _, host := range targets {
 		target, ok := idracs.Get(host)
 		if !ok {
 			return fmt.Errorf("idracs.csv에 없는 노드입니다: %s", host)
 		}
+		entries[host] = target
+	}
 
-		logx.Section("%s / %s", host, target.Address)
-		if preview != nil {
-			preview(host, target)
+	parallel := ps.BMC.Parallel >= 2 && len(targets) > 1
+	commandName := strings.Join(commandArgs, " ")
+
+	// 비밀번호 선수집이 필요한 두 경우입니다. 어느 쪽이든 입력 전에 대상
+	// 노드와 작업 내용을 모두 출력해 "확인 후 입력" 원칙을 지킵니다.
+	var passwords map[string]string
+	switch {
+	case ps.BMC.SamePassword:
+		// 공통 비밀번호: 전체 대상을 요약해 보여준 뒤 한 번만 받습니다.
+		logx.Blank()
+		logx.Info("대상 노드 %d개 (bmc.samePassword: 공통 비밀번호 1회 입력):", len(targets))
+		for _, host := range targets {
+			target := entries[host]
+			logx.Info("- %s / %s", host, target.Address)
+			if preview != nil {
+				preview(host, target)
+			}
 		}
-		password, err := prompt.BMCPassword(host)
+		logx.Blank()
+		common, err := prompt.CommonBMCPassword()
 		if err != nil {
-			resumeHint(app, commandName, host)
-			return fmt.Errorf("%s: %w", host, err)
+			return err
+		}
+		passwords = make(map[string]string, len(targets))
+		for _, host := range targets {
+			passwords[host] = common
+		}
+	case parallel:
+		// 노드별 비밀번호로 병렬 실행: 시작 전에 노드마다 확인 후 입력받습니다.
+		passwords = make(map[string]string, len(targets))
+		for _, host := range targets {
+			target := entries[host]
+			logx.Section("%s / %s", host, target.Address)
+			if preview != nil {
+				preview(host, target)
+			}
+			pw, err := prompt.BMCPassword(host)
+			if err != nil {
+				return fmt.Errorf("%s: %w", host, err)
+			}
+			passwords[host] = pw
+		}
+	}
+
+	if parallel {
+		return runParallelBMCNodes(ctx, app, ps, commandArgs, targets, passwords)
+	}
+
+	for i, host := range targets {
+		target := entries[host]
+		logx.Section("%s / %s", host, target.Address)
+
+		// 실패 안내: 실패한 노드부터 남은 대상만 다시 실행하도록 합니다.
+		hint := func() {
+			if nodeSelected {
+				retryHint(app, commandArgs, targets[i:])
+			} else {
+				resumeHint(app, commandName, host)
+			}
+		}
+
+		password, collected := passwords[host]
+		if !collected {
+			if preview != nil {
+				preview(host, target)
+			}
+			var err error
+			password, err = prompt.BMCPassword(host)
+			if err != nil {
+				hint()
+				return fmt.Errorf("%s: %w", host, err)
+			}
 		}
 
 		if err := withSession(ctx, cfg, target, password, func(client *redfish.Client) error {
 			return action(ctx, host, target, client)
 		}); err != nil {
-			resumeHint(app, commandName, host)
+			hint()
 			return fmt.Errorf("%s: %w", host, err)
 		}
 	}
@@ -149,9 +237,21 @@ var withSession = func(ctx context.Context, cfg *config.Config, target csvdata.I
 	return fn(client)
 }
 
+// hintWriter는 실패 시 재실행 안내의 출력 대상입니다. 테스트가 안내 내용을
+// 검증할 수 있도록 변수입니다.
+var hintWriter io.Writer = os.Stderr
+
 // resumeHint는 실패한 노드부터 이어서 실행할 명령을 안내합니다.
 // --config, --pathset을 지정해 실행했다면 안내 명령에도 포함합니다.
 func resumeHint(app *App, commandName, host string) {
-	fmt.Fprintf(os.Stderr, "\n문제를 수정한 뒤 다음 명령으로 %s 노드부터 이어서 실행하세요:\n", host)
-	fmt.Fprintf(os.Stderr, "  %s\n", app.ResumeCommand(commandName, host))
+	fmt.Fprintf(hintWriter, "\n문제를 수정한 뒤 다음 명령으로 %s 노드부터 이어서 실행하세요:\n", host)
+	fmt.Fprintf(hintWriter, "  %s\n", app.ResumeCommand(commandName, host))
+}
+
+// retryHint는 NODE 인자로 대상을 지정한 실행이 실패했을 때, 실패한 노드를
+// 포함한 남은 대상만 그대로 다시 실행하도록 안내합니다. --from(파일 순서
+// 기준)을 안내하면 지정하지 않은 노드까지 대상이 넓어지므로 쓰지 않습니다.
+func retryHint(app *App, commandArgs []string, remaining []string) {
+	fmt.Fprintf(hintWriter, "\n문제를 수정한 뒤 다음 명령으로 남은 노드를 다시 실행하세요:\n")
+	fmt.Fprintf(hintWriter, "  %s\n", app.RetryCommand(commandArgs, remaining))
 }

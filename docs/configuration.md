@@ -31,13 +31,13 @@ cluster:
 | `cluster.domain` | 모든 검증과 MCS 주소의 기준입니다. 노드 FQDN은 이 도메인 소속이어야 합니다. |
 | `cluster.apiURL` | 지정 시에도 호스트가 `cluster.domain` 소속이어야 합니다(다른 클러스터를 가리키는 재정의 차단). |
 | `registry.pullSecret` | release 이미지용 pull secret 경로. **저장소에 커밋하지 마세요.** |
-| `registry.registry` | 연결 환경 `quay.io`, 단절 환경은 mirror registry (예: `mirror.example.com/ocp4`) |
+| `registry.registry` | 연결 환경에서는 `quay.io`, 폐쇄망(disconnected) 환경에서는 mirror registry (예: `mirror.example.com/ocp4`) |
 | `webServer.url`, `webServer.path` | 생성한 ISO/rootfs를 게시할 웹 서버. iDRAC과 노드에서 접근 가능해야 합니다. `http`/`https`만 허용. |
 | `workspace.*` | 산출물 파일 이름들. 기본값 그대로 쓰면 됩니다. `tmpDir`는 prepare가 통째로 삭제하므로 작업 디렉터리 안이어야 합니다. |
 | `pathsets.active` | 현재 작업할 하드웨어 그룹. `--pathset` 전역 옵션으로 일시 변경 가능. |
 | `redfish.*` | iDRAC 연결 옵션. 자체 서명 인증서 환경은 `tlsVerify: false`. `*WaitSeconds`는 전원/미디어 조작 사이 대기 시간. `powerOffWaitSeconds`는 전원 꺼짐 확인 폴링의 최대 대기로, 꺼짐이 확인되면 즉시 진행하고 시간 안에 확인되지 않아도 경고 후 진행합니다. |
 | `tools.*` | 외부 명령 경로. `coreosInstaller`를 비우면 prepare가 추출한 것을 사용합니다. |
-| `logger.debug` | `true`면 외부 명령(인자 포함)과 작업 중 Redfish 요청을 상세 로그로 확인할 수 있습니다. 전역 옵션 `--debug`로 이번 실행에만 켤 수도 있습니다. |
+| `logger.debug` | `true`면 상세 로그 — 실행되는 외부 명령(인자 포함)과 Redfish 요청이 그대로 출력됩니다. 전역 옵션 `--debug`로 일시적으로 켤 수도 있습니다. |
 
 ## pathset.yaml
 
@@ -71,6 +71,8 @@ network:
 
 bmc:
   type: "idrac10"           # 생략 시 idrac10 (현재 유일한 지원 종류)
+  samePassword: false       # true면 공통 비밀번호를 한 번만 입력
+  parallel: 0               # 2 이상이면 그 개수만큼 노드 동시 처리
 ```
 
 | 키 | 설명 |
@@ -81,6 +83,8 @@ bmc:
 | `network.dns` | 노드가 사용할 DNS 서버. ignition의 DNS 검증도 이 서버들로 직접 조회합니다. copy 모드에서는 생략 가능(생략 시 DNS 검증은 건너뜀). |
 | `network.bonding` | `true`면 `bond.*` 두 NIC로 active-backup 본딩, `false`면 `activeNIC` 하나만 사용. |
 | `bmc.type` | idracs.csv의 관리 컨트롤러 종류. `boot`/`live-boot`/`eject`/`inventory`가 이 값으로 구현을 선택합니다. 현재 `idrac10`만 지원하며 생략 시 기본값입니다. |
+| `bmc.samePassword` | `true`면 모든 노드가 같은 BMC 비밀번호를 쓴다고 보고, 대상 노드와 작업 내용을 모두 보여준 뒤 한 번만 입력받습니다. `parallel`과 독립적이라 순차 실행에도 그대로 적용됩니다(한 대씩 처리하되 입력은 한 번). 노드별 환경 변수(`UPI_FORGE_IDRAC_PASSWORD_<HOSTNAME>`)는 이때 무시됩니다. 생략 시 `false`(노드별 입력). |
+| `bmc.parallel` | BMC 명령의 동시 실행 노드 수 **상한**. `0`/`1`(기본)은 순차 처리, `2` 이상이면 비밀번호를 모두 받은 뒤 그 개수만큼 동시에 처리합니다. 대상이 상한보다 적으면 대상 수만큼만 동시에 돌고(3대 + `parallel: 4` → 3대 동시), 한 대가 끝날 때마다 대기 중인 다음 노드가 이어집니다. 대상이 1대뿐이면 값과 무관하게 순차로 실행됩니다. 병렬일 때 노드별 상세 출력은 pathset의 `logs/<명령>-<실행시각>-<고유값>/<hostname>.log`에 남고 화면에는 전체 진행만 표시합니다. 일부 노드가 실패해도 나머지는 끝까지 진행하며, 마지막에 실패한 노드만 다시 실행할 명령(예: `upi-forge boot worker5 worker7`)을 안내합니다. |
 
 ## CSV 파일
 

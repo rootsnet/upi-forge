@@ -1,6 +1,7 @@
 // Package release는 OpenShift release에서 machine-os-images 이미지를 찾아
 // RHCOS ISO와 coreos-installer를 추출합니다. 이미지 조회와 추출은 연결망과
-// 단절망의 인증 및 미러 설정을 처리할 수 있는 oc에 위임합니다.
+// 폐쇄망(disconnected) 환경의 인증 및 미러 설정을 처리할 수 있는 oc에
+// 위임합니다.
 //
 // 추출 결과 검증과 산출물 교체는 다음 규칙에 따라 처리합니다.
 //   - ISO와 coreos-installer가 정확히 하나씩인지 확인
@@ -53,7 +54,8 @@ func ImageFor(ctx context.Context, o Options) (string, error) {
 		return "", fmt.Errorf("machine-os-images를 확인하지 못했습니다: version=%s", o.Version)
 	}
 
-	// mirror registry를 쓰는 단절 환경에서는 art-dev 경로를 mirror 경로로 바꿉니다.
+	// 폐쇄망(disconnected) 환경에서 mirror registry를 쓰면 art-dev 경로를
+	// mirror 경로로 바꿉니다.
 	if !strings.HasPrefix(image, o.BaseRegistry) {
 		image = strings.Replace(image,
 			"quay.io/openshift-release-dev/ocp-v4.0-art-dev",

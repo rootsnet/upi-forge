@@ -19,11 +19,15 @@ const ejectUsage = `upi-forge eject - iDRAC Virtual Media를 제거합니다.
 설치가 끝난 뒤 마운트된 ISO를 떼어 내고, 모든 장치가 Inserted=false인지 확인합니다.
 
 사용법:
-  upi-forge eject [--from HOSTNAME]
+  upi-forge eject [--from HOSTNAME] [NODE ...]
   upi-forge eject --address IDRAC_IP [--username root]
 
 --address를 지정하면 CSV와 무관하게 iDRAC 한 대만 처리합니다.
-지정하지 않으면 선택한 pathset의 idracs.csv 전체를 순서대로 처리합니다.`
+지정하지 않으면 선택한 pathset의 idracs.csv 전체를 처리합니다.
+NODE를 지정하면 그 노드만 처리합니다(병렬 실행에서 실패한 노드만 다시
+실행할 때 사용). --from과 NODE는 함께 사용할 수 없습니다.
+pathset의 bmc.samePassword와 bmc.parallel 동작은 boot와 같습니다
+(upi-forge boot -h 참고).`
 
 func runEject(ctx context.Context, app *App, args []string) error {
 	fs := newFlagSet("eject", ejectUsage)
@@ -32,9 +36,6 @@ func runEject(ctx context.Context, app *App, args []string) error {
 	username := fs.String("username", "root", "--address와 함께 사용할 iDRAC 계정")
 	if err := fs.Parse(args); err != nil {
 		return flagError(err)
-	}
-	if fs.NArg() > 0 {
-		return fmt.Errorf("지원하지 않는 인자입니다: %s", fs.Arg(0))
 	}
 
 	cfg, err := app.Config()
@@ -46,6 +47,9 @@ func runEject(ctx context.Context, app *App, args []string) error {
 	if *address != "" {
 		if *from != "" {
 			return fmt.Errorf("--address와 --from은 함께 사용할 수 없습니다")
+		}
+		if fs.NArg() > 0 {
+			return fmt.Errorf("--address와 NODE 인자는 함께 사용할 수 없습니다: %s", fs.Arg(0))
 		}
 		logx.Section("%s", *address)
 		// CSV 경로와 동일하게 환경 변수 폴백을 지원합니다.
@@ -81,13 +85,13 @@ func runEject(ctx context.Context, app *App, args []string) error {
 	if err != nil {
 		return err
 	}
-	_, idracs, targets, err := idracTargets(ps, *from)
+	_, idracs, targets, err := idracTargets(ps, *from, fs.Args())
 	if err != nil {
 		return err
 	}
 	logx.KeyValues("선택 pathset", ps.Name, "대상 노드 수", fmt.Sprint(len(targets)))
 
-	if err := forEachBMCNode(ctx, app, cfg, idracs, targets, "eject",
+	if err := forEachBMCNode(ctx, app, cfg, ps, idracs, targets, []string{"eject"}, fs.NArg() > 0,
 		func(_ string, _ csvdata.IDRAC) {
 			logx.Info("연결된 Virtual Media를 모두 제거합니다.")
 		},

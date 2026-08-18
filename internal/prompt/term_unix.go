@@ -16,7 +16,8 @@ import (
 
 // termios 관련 ioctl 요청 번호입니다.
 // golang.org/x/term에 의존하지 않기 위해 직접 호출합니다.
-// (단절망 bastion에서 외부 모듈 없이 빌드할 수 있어야 합니다.)
+// (폐쇄망(disconnected) 환경의 bastion에서 외부 모듈 없이 빌드할 수
+// 있어야 합니다.)
 const (
 	ioctlReadTermios  = syscall.TCGETS
 	ioctlWriteTermios = syscall.TCSETS

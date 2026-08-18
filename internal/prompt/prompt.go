@@ -1,7 +1,8 @@
 // Package prompt는 BMC 비밀번호를 화면에 표시하지 않고 입력받습니다.
 //
-// 비밀번호는 CSV나 설정 파일에 저장하지 않고, 프로세스 목록에 노출되지 않도록
-// 명령행 인자로도 전달하지 않습니다.
+// 비밀번호는 CSV나 설정 파일에 저장하지 않고 명령행 인자로도 전달하지
+// 않습니다. 환경 변수를 사용하는 경우 같은 OS 계정이나 root가 프로세스
+// 환경을 조회할 수 있으므로 실행 계정과 호스트 접근을 제한해야 합니다.
 //
 // 대화형 입력이 어려운 자동화 환경에서는 환경 변수를 사용할 수 있습니다.
 // 노드별 변수를 먼저 확인하고, 없으면 공통 변수를 사용합니다.
@@ -57,6 +58,20 @@ func BMCPassword(hostname string) (string, error) {
 		return v, nil
 	}
 	return Secret("BMC 비밀번호 입력: ")
+}
+
+// CommonBMCPassword는 모든 노드가 같은 비밀번호를 쓸 때(bmc.samePassword)
+// 한 번만 입력받는 경로입니다. 공통 환경 변수가 있으면 그 값을 쓰고, 없으면
+// 숨김 입력을 받습니다. 노드별 환경 변수는 "모든 노드가 같다"는 전제와
+// 모순되므로 확인하지 않습니다.
+func CommonBMCPassword() (string, error) {
+	if v, ok := os.LookupEnv(EnvCommonPassword); ok {
+		if v == "" {
+			return "", fmt.Errorf("%w (%s)", ErrEmptyPassword, EnvCommonPassword)
+		}
+		return v, nil
+	}
+	return Secret("BMC 비밀번호 입력 (모든 노드 공통): ")
 }
 
 // Secret은 에코 없이 한 줄을 입력받습니다.

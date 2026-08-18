@@ -31,7 +31,12 @@ NIC 이름과 디스크 by-path를 확인하고, 그 값으로 pathset.yaml과 n
   ls -l /dev/disk/by-path/
 
 사용법:
-  upi-forge live-boot [--from HOSTNAME]
+  upi-forge live-boot [--from HOSTNAME] [NODE ...]
+
+NODE를 지정하면 그 노드만 처리합니다(병렬 실행에서 실패한 노드만 다시
+실행할 때 사용). --from과 NODE는 함께 사용할 수 없습니다.
+pathset의 bmc.samePassword와 bmc.parallel 동작은 boot와 같습니다
+(upi-forge boot -h 참고).
 
 선행 단계:
   upi-forge prepare 로 만든 full ISO를 웹 서버에 게시해야 합니다.
@@ -49,9 +54,6 @@ func runLiveBoot(ctx context.Context, app *App, args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return flagError(err)
 	}
-	if fs.NArg() > 0 {
-		return fmt.Errorf("지원하지 않는 인자입니다: %s", fs.Arg(0))
-	}
 
 	cfg, ps, err := app.Pathset()
 	if err != nil {
@@ -61,7 +63,7 @@ func runLiveBoot(ctx context.Context, app *App, args []string) error {
 	if err != nil {
 		return err
 	}
-	_, idracs, targets, err := idracTargets(ps, *from)
+	_, idracs, targets, err := idracTargets(ps, *from, fs.Args())
 	if err != nil {
 		return err
 	}
@@ -76,12 +78,13 @@ func runLiveBoot(ctx context.Context, app *App, args []string) error {
 	waits := waitsFrom(cfg)
 	timeout := time.Duration(cfg.Redfish.TimeoutSeconds) * time.Second
 
-	// 재개 안내가 원래 실행과 같은 옵션을 포함하도록 명령 이름에 플래그를 담습니다.
-	resumeName := "live-boot"
+	// 재개·재시도 안내와 병렬 하위 프로세스가 원래 실행과 같은 옵션을
+	// 포함하도록 명령 인자에 플래그를 담습니다.
+	commandArgs := []string{"live-boot"}
 	if *skipISOCheck {
-		resumeName += " --skip-iso-check"
+		commandArgs = append(commandArgs, "--skip-iso-check")
 	}
-	err = forEachBMCNode(ctx, app, cfg, idracs, targets, resumeName,
+	err = forEachBMCNode(ctx, app, cfg, ps, idracs, targets, commandArgs, fs.NArg() > 0,
 		func(_ string, _ csvdata.IDRAC) {
 			logx.Info("라이브 ISO: %s", isoURL)
 		},

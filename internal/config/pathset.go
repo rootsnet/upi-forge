@@ -38,6 +38,14 @@ var SupportedBMCTypes = []string{BMCTypeIDRAC10}
 type BMC struct {
 	// Type은 BMC 종류입니다. 생략하면 idrac10입니다.
 	Type string
+	// SamePassword가 true면 모든 노드가 같은 BMC 비밀번호를 쓴다고 보고
+	// 한 번만 입력받습니다. 노드별 환경 변수는 이 경우 무시됩니다.
+	SamePassword bool
+	// Parallel은 BMC 명령(boot, live-boot, eject, inventory)의 동시 실행
+	// 노드 수 상한입니다. 0 또는 1이면 지금까지처럼 순서대로 처리합니다.
+	// 2 이상이면 노드마다 하위 프로세스를 띄워 병렬로 처리하고, 노드별
+	// 출력은 pathset의 logs/ 아래 파일로 남깁니다.
+	Parallel int
 }
 
 // Pathset은 디스크 by-path와 NIC 구성이 같은 하드웨어 그룹 설정입니다.
@@ -178,6 +186,8 @@ func (p *Pathset) decode(root *yamlx.Node) error {
 
 	bmc := m.Section("bmc")
 	bmc.String("type", &p.BMC.Type)
+	bmc.Bool("samePassword", &p.BMC.SamePassword)
+	bmc.Int("parallel", &p.BMC.Parallel)
 
 	return m.Finish()
 }
@@ -233,6 +243,9 @@ func (p *Pathset) Validate() error {
 	if !slices.Contains(SupportedBMCTypes, p.BMC.Type) {
 		return fmt.Errorf("지원하지 않는 bmc.type입니다: %q (지원: %s)",
 			p.BMC.Type, strings.Join(SupportedBMCTypes, ", "))
+	}
+	if p.BMC.Parallel < 0 {
+		return fmt.Errorf("bmc.parallel은 0 이상이어야 합니다: %d", p.BMC.Parallel)
 	}
 	switch p.Network.Source {
 	case NetworkGenerate, NetworkCopy:

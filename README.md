@@ -9,7 +9,7 @@ OpenShift 클러스터에 **UPI 방식으로 worker 노드를 추가**하는 작
 prepare → ignition → iso → (웹 서버 게시) → boot
 ```
 
-- **단절망(disconnected) 환경 우선**: 외부 라이브러리 의존이 없어 인터넷이
+- **폐쇄망(disconnected) 환경 우선**: 외부 라이브러리 의존이 없어 인터넷이
   없는 bastion에서도 소스만으로 빌드됩니다. 런타임에도 `oc`, `butane`,
   `coreos-installer` 외의 외부 명령이 필요 없습니다.
 - **실행 전 사고 방지 검증**: 노드 hostname의 클러스터 도메인 일치, DNS
@@ -54,7 +54,8 @@ make
 필요할 때만 쓰는 타깃: `make build`(검사 생략, 빌드만),
 `make dist`(실행 파일 + configs 배포용 tar.gz), `make help`(전체 목록).
 
-단절망 반입 시에도 저장소를 복사한 뒤 `go build ./cmd/upi-forge` 한 번이면
+폐쇄망(disconnected) 환경에 반입할 때에도 저장소를 복사한 뒤
+`go build ./cmd/upi-forge` 한 번이면
 됩니다. 모듈 다운로드 단계가 없습니다.
 
 ## 빠른 시작
@@ -110,13 +111,18 @@ upi-forge eject
 | `upi-forge prepare` | RHCOS ISO/coreos-installer 준비, minimal ISO·rootfs 분리 |
 | `upi-forge ignition` | 노드별 NMState YAML과 Ignition 생성 |
 | `upi-forge iso [--full\|--rootfs] [NODE ...]` | 노드별 설치 ISO 생성 |
-| `upi-forge boot [--from HOST]` | iDRAC Virtual Media로 설치 부팅 |
-| `upi-forge inventory [--from HOST]` | iDRAC NIC/스토리지 인벤토리 수집 |
-| `upi-forge live-boot [--from HOST]` | 공용 ISO로 라이브 부팅(하드웨어 실측용) |
-| `upi-forge eject` | 가상 미디어 분리 및 정리 |
+| `upi-forge boot [--from HOST] [NODE ...]` | iDRAC Virtual Media로 설치 부팅 |
+| `upi-forge inventory [--from HOST] [NODE ...]` | iDRAC NIC/스토리지 인벤토리 수집 |
+| `upi-forge live-boot [--from HOST] [NODE ...]` | 공용 ISO로 라이브 부팅(하드웨어 실측용) |
+| `upi-forge eject [--from HOST] [NODE ...]` | 가상 미디어 분리 및 정리 |
 | `upi-forge version` | 빌드 버전 확인 |
 
 각 명령은 `upi-forge <명령> -h`로 상세 도움말을 제공합니다.
+BMC 명령(boot/live-boot/eject/inventory)은 NODE 인자로 특정 노드만
+처리할 수 있고, pathset의 `bmc.samePassword`(공통 비밀번호 1회 입력)와
+`bmc.parallel`(노드 동시 처리)을 지원합니다 —
+[docs/configuration.md](docs/configuration.md) 참고.
+`--from HOST`와 `NODE ...`는 서로 배타적이며 함께 사용할 수 없습니다.
 전역 옵션 `--debug`를 켜면 실행되는 외부 명령과 Redfish 요청이 그대로
 출력됩니다(토큰·비밀번호 제외) —
 [docs/troubleshooting.md](docs/troubleshooting.md) 참고.

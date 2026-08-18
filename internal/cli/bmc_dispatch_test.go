@@ -8,6 +8,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,6 +25,13 @@ import (
 // bmcCommandEnv는 BMC 명령이 작업 단계까지 도달하는 데 필요한 최소 구성
 // (idracs.csv 포함 pathset과 boot용 노드 ISO)을 만듭니다.
 func bmcCommandEnv(t *testing.T) (configPath string) {
+	t.Helper()
+	return bmcCommandEnvWith(t, "", "worker1")
+}
+
+// bmcCommandEnvWith는 노드 목록과 pathset.yaml에 덧붙일 bmc 섹션을 지정해
+// 같은 구성을 만듭니다. 병렬 실행 테스트가 여러 노드 환경에 사용합니다.
+func bmcCommandEnvWith(t *testing.T, bmcSection string, hosts ...string) (configPath string) {
 	t.Helper()
 
 	configDir := t.TempDir()
@@ -50,6 +58,14 @@ pathsets:
 	if err := os.MkdirAll(psDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+
+	nodesCSV := "hostname,ip\n"
+	idracsCSV := "hostname,idrac_ip,idrac_id\n"
+	for i, host := range hosts {
+		nodesCSV += fmt.Sprintf("%s,192.0.2.%d\n", host, 100+i)
+		idracsCSV += fmt.Sprintf("%s,192.0.2.%d,root\n", host, 200+i)
+	}
+
 	files := map[string]string{
 		"pathset.yaml": `
 name: "demo"
@@ -59,10 +75,10 @@ network:
   gateway: "192.0.2.1"
   dns: ["192.0.2.7"]
   activeNIC: "enp1s0"
-`,
-		"nodes.csv":  "hostname,ip\nworker1,192.0.2.100\n",
+` + bmcSection,
+		"nodes.csv":  nodesCSV,
 		"nics.csv":   "nic\nenp1s0\n",
-		"idracs.csv": "hostname,idrac_ip,idrac_id\nworker1,192.0.2.200,root\n",
+		"idracs.csv": idracsCSV,
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(psDir, name), []byte(content), 0o600); err != nil {
@@ -71,8 +87,10 @@ network:
 	}
 
 	// boot는 노드 설치 ISO가 있어야 작업 단계로 진행합니다.
-	if err := os.WriteFile(filepath.Join(workspace, "worker1.iso"), []byte("iso"), 0o600); err != nil {
-		t.Fatal(err)
+	for _, host := range hosts {
+		if err := os.WriteFile(filepath.Join(workspace, host+".iso"), []byte("iso"), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return filepath.Join(configDir, "upi-forge.yaml")
 }

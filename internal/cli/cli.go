@@ -1,6 +1,7 @@
 // Package cli는 이미지 준비, Ignition 및 ISO 생성, iDRAC 부팅을 위한
-// upi-forge 서브커맨드를 제공합니다. 단절망에서도 추가 모듈 없이 빌드할 수
-// 있도록 명령행 해석에는 표준 라이브러리 flag를 사용합니다.
+// upi-forge 서브커맨드를 제공합니다. 폐쇄망(disconnected) 환경에서도
+// 추가 모듈 없이 빌드할 수 있도록 명령행 해석에는 표준 라이브러리 flag를
+// 사용합니다.
 package cli
 
 import (
@@ -32,6 +33,12 @@ type App struct {
 	debugFlag   bool   // --debug 플래그. 설정 파일 값보다 우선합니다.
 
 	cfg *config.Config
+	// resolvedPathset은 Pathset()이 실제로 읽은 pathset 이름입니다.
+	// --pathset 없이 설정의 active로 선택된 경우에도 채워지므로, 안내
+	// 명령과 병렬 하위 프로세스가 이 이름을 --pathset으로 고정할 수
+	// 있습니다 — 그 사이 active가 바뀌어도 같은 pathset(같은 장비)을
+	// 대상으로 하기 위해서입니다.
+	resolvedPathset string
 }
 
 // Config는 설정을 한 번만 읽어 재사용합니다.
@@ -52,6 +59,29 @@ func (a *App) Config() (*config.Config, error) {
 	return cfg, nil
 }
 
+// globalArgs는 현재 실행의 전역 옵션을 안내 명령이나 하위 프로세스가
+// 그대로 물려받도록 인자 목록으로 만듭니다.
+//
+// pathset은 --pathset으로 지정한 값이 아니라 실제로 해석된 이름
+// (resolvedPathset)을 우선합니다. 설정의 pathsets.active로 선택한 실행도
+// 안내 명령·하위 프로세스에는 --pathset이 명시되어야, 그 사이 active가
+// 바뀌어도 다른 pathset의 같은 hostname(다른 장비)을 제어하는 사고가
+// 없습니다.
+func (a *App) globalArgs() []string {
+	var parts []string
+	if a.configPath != "" && a.configPath != config.DefaultPath {
+		parts = append(parts, "--config", a.configPath)
+	}
+	name := a.pathsetName
+	if a.resolvedPathset != "" {
+		name = a.resolvedPathset
+	}
+	if name != "" {
+		parts = append(parts, "--pathset", name)
+	}
+	return parts
+}
+
 // ResumeCommand는 실패한 노드부터 이어서 실행할 명령 문자열을 만듭니다.
 // 사용자가 --config나 --pathset을 지정해 실행했다면 그대로 포함해야
 // 안내된 명령을 복사해 실행했을 때 같은 설정으로 재개됩니다.
@@ -59,14 +89,30 @@ func (a *App) Config() (*config.Config, error) {
 // (예: "boot --skip-iso-check") — 안내된 명령이 원래 실행과 같은 옵션으로
 // 재개되어야 하기 때문입니다.
 func (a *App) ResumeCommand(commandName, host string) string {
-	parts := []string{"upi-forge"}
-	if a.configPath != "" && a.configPath != config.DefaultPath {
-		parts = append(parts, "--config", a.configPath)
-	}
-	if a.pathsetName != "" {
-		parts = append(parts, "--pathset", a.pathsetName)
-	}
+	parts := append([]string{"upi-forge"}, a.globalArgs()...)
 	parts = append(parts, commandName, "--from", host)
+	return strings.Join(parts, " ")
+}
+
+// WorkerArgs는 병렬 실행에서 노드 하나를 처리할 하위 프로세스의 인자입니다.
+// 전역 옵션과 서브커맨드 플래그를 그대로 물려주고 NODE 인자 하나를 붙입니다.
+// 대상이 하나뿐인 실행은 병렬화하지 않으므로 하위 프로세스는 순차 경로로
+// 동작합니다(재귀 없음). --debug는 노드 로그 파일에 상세가 남도록 물려줍니다.
+func (a *App) WorkerArgs(commandArgs []string, host string) []string {
+	args := a.globalArgs()
+	if a.debugFlag {
+		args = append(args, "--debug")
+	}
+	args = append(args, commandArgs...)
+	return append(args, host)
+}
+
+// RetryCommand는 병렬 실행에서 실패한 노드만 다시 실행할 명령 문자열입니다.
+// 병렬은 실패가 순서와 무관하게 흩어지므로 --from 대신 NODE 인자로 안내합니다.
+func (a *App) RetryCommand(commandArgs []string, hosts []string) string {
+	parts := append([]string{"upi-forge"}, a.globalArgs()...)
+	parts = append(parts, commandArgs...)
+	parts = append(parts, hosts...)
 	return strings.Join(parts, " ")
 }
 
@@ -84,6 +130,9 @@ func (a *App) Pathset() (*config.Config, *config.Pathset, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	// active로 선택된 경우에도 해석된 이름을 남겨, 이후 안내 명령과
+	// 병렬 하위 프로세스가 같은 pathset을 명시적으로 대상하게 합니다.
+	a.resolvedPathset = ps.Name
 	return cfg, ps, nil
 }
 

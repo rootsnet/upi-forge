@@ -27,8 +27,8 @@ pathset 디렉터리 이름과 `pathset.yaml`의 `name`은 일치해야 합니�
 
 **release 이미지 추출 실패**
 pull secret 경로(`registry.pullSecret`)와 mirror registry 주소
-(`registry.registry`)를 확인하세요. 단절망에서는 mirror registry에
-해당 버전의 release 이미지가 있어야 합니다.
+(`registry.registry`)를 확인하세요. 폐쇄망(disconnected) 환경에서는
+mirror registry에 해당 버전의 release 이미지가 있어야 합니다.
 
 ## ignition
 
@@ -87,12 +87,22 @@ iDRAC 계정·비밀번호·계정 잠금·Login 권한을 확인하세요. 비�
 
 **`HTTP 429` (세션 수 제한)**
 iDRAC의 활성 세션이 가득 찼습니다. iDRAC 웹 UI에서 미사용 세션을
-정리하세요. UPI Forge는 정상·오류·Ctrl+C 어느 경우에도 자기 세션을
-삭제하지만, 다른 도구가 남긴 세션은 알 수 없습니다.
+정리하세요. UPI Forge는 정상 종료, 오류 발생, Ctrl+C 중단 시 자기 세션
+삭제를 시도하고, 삭제가 확인되지 않으면 경고합니다. 이 경고가 나오거나
+세션 수가 줄지 않으면 BMC의 활성 세션을 직접 확인하세요. 다른 도구가
+남긴 세션은 UPI Forge에서 확인할 수 없습니다.
 
 **중간 노드에서 실패**
 실패 시점에 `--from <hostname>` 재개 명령이 안내됩니다. 원래 실행에
 쓴 옵션(`--skip-iso-check` 등)도 안내에 포함됩니다.
+
+**병렬 실행(`bmc.parallel`)에서 일부 노드 실패**
+나머지 노드는 끝까지 진행되고, 마지막에 실패 노드 목록과 그 노드만
+다시 실행하는 명령(예: `upi-forge boot worker5 worker7`)이 안내됩니다.
+원인은 pathset의 `logs/<명령>-<실행시각>-<고유값>/<hostname>.log`에서
+확인하세요 — 순차 실행에서 화면에 나오던 노드별 출력 전체가 그대로
+들어 있습니다(`--debug`를 켰다면 상세도 포함). 병렬에서는 실패가
+순서와 무관하게 흩어지므로 `--from`이 아니라 NODE 인자로 재시도합니다.
 
 **부트 순서 관련 경고가 나오지만 계속 진행됨**
 의도된 동작입니다. 부트 순서 표현은 장비·펌웨어마다 달라, 이 보호 단계가
