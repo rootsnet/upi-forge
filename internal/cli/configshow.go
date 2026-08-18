@@ -82,6 +82,7 @@ func runConfigShow(_ context.Context, app *App, args []string) error {
 		"nics.csv", pathState(ps.NICsCSV()),
 		"idracs.csv", pathState(ps.IDRACsCSV()),
 		"BMC 종류", bmcTypeDisplay(ps),
+		"BMC 실행", bmcRunDisplay(ps),
 	)
 
 	if nodes, err := csvdata.LoadNodes(ps.NodesCSV()); err == nil {
@@ -113,6 +114,24 @@ func bmcTypeDisplay(ps *config.Pathset) string {
 		return "(해당 없음: idracs.csv 없음)"
 	}
 	return ps.BMC.Type
+}
+
+// bmcRunDisplay는 BMC 명령의 실행 방식(순차/병렬, 비밀번호 입력 방식)
+// 표시 문자열입니다. bmcTypeDisplay와 같은 이유로 idracs.csv가 없는
+// pathset에는 해당 없음을 표시합니다.
+func bmcRunDisplay(ps *config.Pathset) string {
+	if !fsutil.IsRegularFile(ps.IDRACsCSV()) {
+		return "(해당 없음: idracs.csv 없음)"
+	}
+	run := "순차"
+	if ps.BMC.Parallel >= 2 {
+		run = fmt.Sprintf("병렬 (동시 최대 %d개)", ps.BMC.Parallel)
+	}
+	password := "비밀번호 노드별 입력"
+	if ps.BMC.SamePassword {
+		password = "공통 비밀번호 1회 입력"
+	}
+	return run + " / " + password
 }
 
 func pathState(path string) string {

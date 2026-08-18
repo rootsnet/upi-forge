@@ -21,7 +21,8 @@ cluster:
 registry:
   # release 이미지 접근에 사용할 pull secret. 저장소에 커밋하지 마세요.
   pullSecret: "pull-secret.json"
-  # 연결 환경은 quay.io, 단절 환경은 mirror registry를 사용합니다.
+  # 연결 환경에서는 quay.io, 폐쇄망(disconnected) 환경에서는
+  # mirror registry를 사용합니다.
   # 예) mirror.example.com/ocp4
   registry: "quay.io"
 

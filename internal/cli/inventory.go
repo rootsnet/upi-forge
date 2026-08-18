@@ -26,7 +26,12 @@ VM 대상에는 iDRAC이 없으므로 이 단계 없이 기본 이미지 부팅�
 조회(GET)만 수행하며 서버 전원, BIOS, NIC 또는 RAID 설정을 변경하지 않습니다.
 
 사용법:
-  upi-forge inventory [--from HOSTNAME]
+  upi-forge inventory [--from HOSTNAME] [NODE ...]
+
+NODE를 지정하면 그 노드만 처리합니다(병렬 실행에서 실패한 노드만 다시
+실행할 때 사용). --from과 NODE는 함께 사용할 수 없습니다.
+pathset의 bmc.samePassword와 bmc.parallel 동작은 boot와 같습니다
+(upi-forge boot -h 참고).
 
 출력:
   <pathset>/inventory/<hostname>/nic-inventory.yaml
@@ -47,9 +52,6 @@ func runInventory(ctx context.Context, app *App, args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return flagError(err)
 	}
-	if fs.NArg() > 0 {
-		return fmt.Errorf("인자를 지원하지 않습니다. iDRAC 정보는 idracs.csv에서 설정하세요: %s", fs.Arg(0))
-	}
 
 	cfg, ps, err := app.Pathset()
 	if err != nil {
@@ -59,7 +61,7 @@ func runInventory(ctx context.Context, app *App, args []string) error {
 	if err != nil {
 		return err
 	}
-	_, idracs, targets, err := idracTargets(ps, *from)
+	_, idracs, targets, err := idracTargets(ps, *from, fs.Args())
 	if err != nil {
 		return err
 	}
@@ -71,7 +73,7 @@ func runInventory(ctx context.Context, app *App, args []string) error {
 		"대상 노드 수", fmt.Sprint(len(targets)),
 	)
 
-	err = forEachBMCNode(ctx, app, cfg, idracs, targets, "inventory",
+	err = forEachBMCNode(ctx, app, cfg, ps, idracs, targets, []string{"inventory"}, fs.NArg() > 0,
 		func(host string, _ csvdata.IDRAC) {
 			logx.Info("수집 결과 저장 위치: %s", filepath.Join(outputRoot, host))
 		},
@@ -121,7 +123,7 @@ func runInventory(ctx context.Context, app *App, args []string) error {
 	return nil
 }
 
-// writeNICInventory는 동일한 NIC 인벤토리를 YAML과 JSON으로 저장합니다.
+// writeNICInventory는 같은 구조체를 YAML과 JSON으로 저장합니다.
 // 원본에서 이 변환에 필요했던 python3와 PyYAML은 더 이상 필요하지 않습니다.
 func writeNICInventory(dir string, inv *bmc.NICInventory) error {
 	base := filepath.Join(dir, "nic-inventory")

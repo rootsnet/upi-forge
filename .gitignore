@@ -12,3 +12,7 @@ tmp/
 pull-secret*.json
 *.key
 *.pem
+
+# 실행 결과물 — 서버 식별 정보와 장비 주소가 들어 있습니다.
+configs/pathsets/*/inventory/
+configs/pathsets/*/logs/

@@ -10,12 +10,29 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"testing"
 )
 
 const envFakeInstaller = "UPI_FORGE_TEST_FAKE_INSTALLER"
 
+// envInterruptHelper가 설정되면 테스트 바이너리는 "인터럽트를 받으면 정리
+// 후 종료하는 하위 프로세스" 역할을 합니다. launchWorker의 취소 동작
+// 테스트(parallel_interrupt_unix_test.go)가 실제 프로세스로 확인하는 데
+// 사용합니다.
+const envInterruptHelper = "UPI_FORGE_TEST_INTERRUPT_HELPER"
+
 func TestMain(m *testing.M) {
+	if os.Getenv(envInterruptHelper) == "1" {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt)
+		fmt.Println("helper-ready")
+		<-sig
+		// 인터럽트 후에도 실행 기회를 얻는 정리 코드를 흉내 냅니다.
+		// 즉시 강제 종료되면 이 줄이 출력되지 못합니다.
+		fmt.Println("helper-cleanup-done")
+		os.Exit(0)
+	}
 	if os.Getenv(envFakeInstaller) == "1" {
 		for i, arg := range os.Args {
 			if arg == "-o" && i+1 < len(os.Args) {

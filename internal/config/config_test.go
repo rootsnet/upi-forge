@@ -242,6 +242,9 @@ func TestLoadPathsetValidation(t *testing.T) {
 		"bond mode 오타":      "name: p\ndisk:\n  osDisk: /dev/x\nnetwork:\n  gateway: 192.0.2.1\n  dns: [1.1.1.1]\n  bonding: true\n  bond:\n    name: bond0\n    mode: active-bakcup\n    primary: eth0\n    standby: eth1\n",
 		"지원하지 않는 bond mode": "name: p\ndisk:\n  osDisk: /dev/x\nnetwork:\n  gateway: 192.0.2.1\n  dns: [1.1.1.1]\n  bonding: true\n  bond:\n    name: bond0\n    mode: 802.3ad\n    primary: eth0\n    standby: eth1\n",
 		"음수 miimon":         "name: p\ndisk:\n  osDisk: /dev/x\nnetwork:\n  gateway: 192.0.2.1\n  dns: [1.1.1.1]\n  bonding: true\n  bond:\n    name: bond0\n    primary: eth0\n    standby: eth1\n    miimon: -100\n",
+		// 병렬 개수 오타(음수)는 BMC 명령 실행 시점이 아니라 설정 검증
+		// 시점에 잡습니다.
+		"음수 bmc.parallel": "name: p\ndisk:\n  osDisk: /dev/x\nnetwork:\n  gateway: 192.0.2.1\n  dns: [1.1.1.1]\n  activeNIC: eth0\nbmc:\n  parallel: -2\n",
 	}
 	for name, content := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -298,6 +301,33 @@ func TestLoadPathsetExplicitBMCType(t *testing.T) {
 	}
 	if ps.BMC.Type != config.BMCTypeIDRAC10 {
 		t.Errorf("bmc.type: %q", ps.BMC.Type)
+	}
+	// 실행 방식 옵션의 기본값: 순차(0), 노드별 비밀번호 입력(false).
+	if ps.BMC.Parallel != 0 || ps.BMC.SamePassword {
+		t.Errorf("bmc 실행 옵션 기본값이 순차/노드별 입력이어야 합니다: parallel=%d samePassword=%v",
+			ps.BMC.Parallel, ps.BMC.SamePassword)
+	}
+}
+
+// bmc.samePassword와 bmc.parallel이 그대로 읽혀야 합니다.
+func TestLoadPathsetBMCRunOptions(t *testing.T) {
+	root := writeTree(t, map[string]string{
+		"upi-forge.yaml": strings.Replace(minimalConfig, "pathset-3", "p", 1),
+		"pathsets/p/pathset.yaml": "name: p\ndisk:\n  osDisk: /dev/x\n" +
+			"network:\n  gateway: 192.0.2.1\n  dns: [1.1.1.1]\n  activeNIC: eth0\n" +
+			"bmc:\n  samePassword: true\n  parallel: 4\n",
+	})
+	cfg, err := config.Load(filepath.Join(root, "upi-forge.yaml"))
+	if err != nil {
+		t.Fatalf("Load 실패: %v", err)
+	}
+	ps, err := cfg.LoadPathset()
+	if err != nil {
+		t.Fatalf("LoadPathset 실패: %v", err)
+	}
+	if !ps.BMC.SamePassword || ps.BMC.Parallel != 4 {
+		t.Errorf("bmc 실행 옵션이 반영되어야 합니다: parallel=%d samePassword=%v",
+			ps.BMC.Parallel, ps.BMC.SamePassword)
 	}
 }
 

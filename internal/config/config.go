@@ -53,7 +53,8 @@ type Cluster struct {
 type Registry struct {
 	// PullSecret은 release 이미지 접근에 사용할 pull secret 경로입니다.
 	PullSecret string
-	// Registry는 연결 환경의 quay.io 또는 단절 환경의 미러 레지스트리입니다.
+	// Registry는 연결 환경의 quay.io 또는 폐쇄망(disconnected) 환경의
+	// 미러 레지스트리입니다.
 	// 예: quay.io, mirror.example.com/ocp4
 	Registry string
 }

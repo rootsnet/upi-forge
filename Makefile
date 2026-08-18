@@ -1,6 +1,7 @@
 # upi-forge 빌드
 #
-# 외부 모듈 의존이 없으므로 단절망 bastion에서도 `make` 한 번으로 빌드됩니다.
+# 외부 모듈 의존이 없으므로 폐쇄망(disconnected) 환경의 bastion에서도
+# `make` 한 번으로 빌드됩니다.
 # Go 1.23 이상이면 됩니다.
 
 BINARY   := upi-forge
