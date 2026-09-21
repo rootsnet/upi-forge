@@ -16,7 +16,7 @@ import (
 // 실기에서 확인된 형태를 재현합니다: 2포트 카드가 장치 기능(NDF)은 두 개
 // 노출하면서 NetworkPorts 컬렉션에는 포트 1만 만들어, 포트 2의
 // PhysicalPortAssignment 링크가 404가 됩니다. port2Status로 포트 2 조회의
-// 응답 상태를 바꿔 404 이외의 실패도 흉내 낼 수 있습니다.
+// 응답 상태를 바꿔 404 이외의 실패도 재현할 수 있습니다.
 func fakeNICTree(t *testing.T, port2Status int) http.Handler {
 	t.Helper()
 	const (

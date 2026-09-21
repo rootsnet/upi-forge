@@ -42,8 +42,8 @@ files:
   # hostname,idrac_ip,idrac_id 세 열. 비밀번호는 기록하지 않습니다.
   idracs: "idracs.csv"
 
-# idracs.csv의 관리 컨트롤러 종류. 생략 시 idrac10이며 현재 유일한 지원
-# 종류입니다. 다른 장비 지원이 추가되면 이 값으로 선택합니다.
+# idracs.csv의 관리 컨트롤러 종류. 생략 시 idrac10이며, iDRAC9 장비는
+# idrac9로 지정합니다.
 # samePassword: true면 공통 비밀번호를 한 번만 입력받고,
 # parallel: 2 이상이면 동시에 처리할 최대 노드 수로 사용합니다
 # (노드별 상세 출력은 pathset의 logs/ 아래 파일로 저장).

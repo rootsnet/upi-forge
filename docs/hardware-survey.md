@@ -9,7 +9,11 @@ pathset 설정의 NIC 이름과 디스크 by-path는 **운영체제가 실제로
 설치가 아니라 조사이므로 노드별 산출물(`<hostname>.ign`, `<hostname>.iso`)이
 필요 없고, pathset의 미확정 값(osDisk, NIC)은 임시값이어도 됩니다.
 
-## 베어메탈 (iDRAC10)
+## 베어메탈 (iDRAC9 / iDRAC10)
+
+pathset의 `bmc.type`으로 장비 세대를 지정합니다(생략 시 `idrac10`).
+iDRAC9의 인벤토리는 iDRAC10과 같은 조회 경로를 사용하므로 결과는
+`live-boot` 실측으로 확정하기 전까지 참고용입니다.
 
 ### 1. inventory — iDRAC 참고 정보 수집
 

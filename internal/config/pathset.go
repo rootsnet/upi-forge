@@ -24,13 +24,15 @@ const (
 // PathsetFileName은 pathset 디렉터리 안의 설정 파일 이름입니다.
 const PathsetFileName = "pathset.yaml"
 
-// BMCTypeIDRAC10은 현재 구현된 유일한 BMC 종류입니다.
-// bmc.type을 생략하면 이 값이 기본입니다.
+// BMCTypeIDRAC10은 기본 BMC 종류입니다. bmc.type을 생략하면 이 값입니다.
 const BMCTypeIDRAC10 = "idrac10"
+
+// BMCTypeIDRAC9는 iDRAC9 세대 장비의 BMC 종류입니다.
+const BMCTypeIDRAC9 = "idrac9"
 
 // SupportedBMCTypes는 이 바이너리가 구현한 BMC 종류 목록입니다.
 // 다른 장비 지원을 추가할 때 여기와 cli의 구현 선택에 함께 항목을 추가합니다.
-var SupportedBMCTypes = []string{BMCTypeIDRAC10}
+var SupportedBMCTypes = []string{BMCTypeIDRAC10, BMCTypeIDRAC9}
 
 // BMC는 idracs.csv의 관리 컨트롤러에 사용할 구현을 지정합니다.
 // hostname/ip 형식의 CSV는 공통이고, Redfish 리소스 경로와 부팅 절차가

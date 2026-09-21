@@ -13,7 +13,7 @@ import (
 	"upi-forge/internal/redfish"
 )
 
-// fakeIDRAC은 iDRAC10 Redfish의 최소 동작을 흉내 내는 테스트 서버입니다.
+// fakeIDRAC은 iDRAC10 Redfish의 최소 동작을 재현하는 테스트 서버입니다.
 // Boot()의 11단계가 실제 HTTP 흐름에서 올바른 순서로 동작하는지 확인합니다.
 type fakeIDRAC struct {
 	t          *testing.T
@@ -25,16 +25,16 @@ type fakeIDRAC struct {
 	powerState string
 
 	// failBootOrderPatch가 true면 Settings PATCH를 거부합니다.
-	// BootOrder 쓰기를 지원하지 않거나 잠근 장비를 흉내 냅니다.
+	// BootOrder 쓰기를 지원하지 않거나 잠근 장비를 재현합니다.
 	failBootOrderPatch bool
 
 	// pendingPowerStates가 있으면 System GET마다 앞에서부터 하나씩
-	// PowerState로 보고합니다. 전원 전이가 느린 장비를 흉내 냅니다.
+	// PowerState로 보고합니다. 전원 전이가 느린 장비를 재현합니다.
 	pendingPowerStates []string
 	// stuckPower가 true면 ForceOff를 받아도 전원이 꺼지지 않습니다.
 	stuckPower bool
 	// slowSystemGets가 남아 있는 동안 System GET이 5초간(또는 요청 취소까지)
-	// 응답하지 않습니다. 응답이 멈춘 BMC를 흉내 냅니다.
+	// 응답하지 않습니다. 응답이 멈춘 BMC를 재현합니다.
 	slowSystemGets int
 	// failNthSystemGet가 0이 아니면 그 번째(서버에 도달한 순서 기준)
 	// System GET에 500을 반환합니다.
@@ -314,7 +314,7 @@ func TestBootPerformsFullSequence(t *testing.T) {
 	}
 }
 
-// bootThrough는 가짜 서버에 로그인해 Boot를 실행하는 공용 절차입니다.
+// bootThrough는 테스트 서버에 로그인해 Boot를 실행하는 공용 절차입니다.
 func bootThrough(t *testing.T, fake *fakeIDRAC, waits bmc.Waits) error {
 	t.Helper()
 	idracServer := httptest.NewTLSServer(fake.handler())
@@ -380,7 +380,7 @@ func TestBootPowerOffLimitBoundsSlowStatusGet(t *testing.T) {
 	if err := bootThrough(t, fake, bmc.Waits{PowerOff: 50 * time.Millisecond}); err != nil {
 		t.Fatalf("조회가 멈춰도 경고 후 진행해야 합니다: %v", err)
 	}
-	// 정상 경로는 수십 ms, GET에 deadline을 걸지 않는 회귀는 5초(가짜
+	// 정상 경로는 수십 ms, GET에 deadline을 걸지 않는 회귀는 5초(테스트
 	// 서버의 지연)입니다. 상한은 느린 CI를 감안해 그 사이에 둡니다.
 	if elapsed := time.Since(start); elapsed >= 4*time.Second {
 		t.Errorf("전원 확인 단계가 제한 시간의 상한을 넘겼습니다: %s 걸림", elapsed)
@@ -512,7 +512,7 @@ func TestBootContinuesWhenBootOrderPatchRejected(t *testing.T) {
 }
 
 // bootOrderClient는 removeVirtualMediaFromBootOrder 단위 테스트용으로
-// 가짜 서버에 로그인한 클라이언트를 만듭니다.
+// 테스트 서버에 로그인한 클라이언트를 만듭니다.
 func bootOrderClient(t *testing.T, fake *fakeIDRAC) *redfish.Client {
 	t.Helper()
 	server := httptest.NewTLSServer(fake.handler())

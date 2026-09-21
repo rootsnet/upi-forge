@@ -70,7 +70,7 @@ func write(w io.Writer, format string, args ...any) {
 
 // sanitize는 출력에서 제어 문자를 U+FFFD로 바꿉니다(개행·탭은 유지).
 // BMC 응답 본문, DNS PTR 이름 등 서버가 제어하는 문자열이 로그에 그대로
-// 실리므로, ESC 시퀀스로 운영자 터미널의 이전 줄을 지우거나 가짜 진행
+// 실리므로, ESC 시퀀스로 운영자 터미널의 이전 줄을 지우거나 허위 진행
 // 메시지를 그리는 것을 막습니다.
 func sanitize(s string) string {
 	clean := true

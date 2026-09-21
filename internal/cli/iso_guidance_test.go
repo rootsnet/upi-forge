@@ -118,7 +118,7 @@ func boolYAML(v bool) string {
 	return "false"
 }
 
-// runISOCapture는 iso 명령을 실행하고 안내 출력 전체를 돌려줍니다.
+// runISOCapture는 iso 명령을 실행하고 안내 출력 전체를 반환합니다.
 func runISOCapture(t *testing.T, configPath string) string {
 	t.Helper()
 	// exec된 테스트 바이너리가 coreos-installer 대역으로 동작하게 합니다.

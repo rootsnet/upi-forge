@@ -50,7 +50,7 @@ type Client struct {
 // ErrForeignOrigin은 Redfish 응답이 다른 호스트를 가리킬 때 반환합니다.
 var ErrForeignOrigin = errors.New("Redfish 응답이 다른 호스트를 가리킵니다")
 
-// APIError는 Redfish가 2xx 이외의 응답을 돌려줬을 때의 오류입니다.
+// APIError는 Redfish가 2xx 이외의 응답을 반환했을 때의 오류입니다.
 type APIError struct {
 	Method     string
 	URL        string
@@ -163,7 +163,7 @@ func (c *Client) Root() string { return "https://" + c.host + "/redfish/v1" }
 //
 // 상대 경로는 현재 BMC 주소를 기준으로 해석합니다.
 // 절대 URL이 오면 같은 대상인지 검증하고, 다르면 거부합니다.
-// 손상되었거나 악의적인 BMC가 외부 호스트를 가리키는 참조를 돌려주면
+// 손상되었거나 악의적인 BMC가 외부 호스트를 가리키는 참조를 반환하면
 // 세션 토큰이 그 호스트로 나갈 수 있기 때문입니다.
 func (c *Client) Resolve(ref string) (string, error) {
 	if ref == "" {
@@ -270,27 +270,35 @@ func (c *Client) Logout() {
 }
 
 func (c *Client) do(ctx context.Context, method, rawURL string, payload any) ([]byte, error) {
+	data, _, err := c.doWithHeader(ctx, method, rawURL, payload)
+	return data, err
+}
+
+// doWithHeader는 do와 같고 응답 헤더도 함께 반환합니다. 비동기 액션
+// (HTTP 202)이 Location 헤더로 알려주는 Task 경로를 호출자가 추적할 수
+// 있게 하기 위한 것으로, 오류 시 헤더는 nil입니다.
+func (c *Client) doWithHeader(ctx context.Context, method, rawURL string, payload any) ([]byte, http.Header, error) {
 	// 토큰을 붙이기 직전에 대상을 한 번 더 확인합니다.
 	// 호출자가 Resolve를 거치므로 보통 통과하지만, 이 검사가 마지막 방어선입니다.
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, fmt.Errorf("요청 주소를 해석하지 못했습니다: %q: %w", rawURL, err)
+		return nil, nil, fmt.Errorf("요청 주소를 해석하지 못했습니다: %q: %w", rawURL, err)
 	}
 	if err := c.checkOrigin(parsed); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var body io.Reader
 	if payload != nil {
 		encoded, err := json.Marshal(payload)
 		if err != nil {
-			return nil, fmt.Errorf("요청 본문을 만들지 못했습니다: %w", err)
+			return nil, nil, fmt.Errorf("요청 본문을 만들지 못했습니다: %w", err)
 		}
 		body = bytes.NewReader(encoded)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, rawURL, body)
 	if err != nil {
-		return nil, fmt.Errorf("요청을 만들지 못했습니다: %s: %w", rawURL, err)
+		return nil, nil, fmt.Errorf("요청을 만들지 못했습니다: %s: %w", rawURL, err)
 	}
 	req.Header.Set("Accept", "application/json")
 	if payload != nil {
@@ -303,7 +311,7 @@ func (c *Client) do(ctx context.Context, method, rawURL string, payload any) ([]
 	logx.Debug("%s %s", method, rawURL)
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("BMC Redfish 연결에 실패했습니다: %s\n"+
+		return nil, nil, fmt.Errorf("BMC Redfish 연결에 실패했습니다: %s\n"+
 			"확인: BMC 주소, TCP 443, 방화벽, 라우팅 및 TLS 연결: %w", rawURL, err)
 	}
 	defer drainClose(resp)
@@ -312,13 +320,13 @@ func (c *Client) do(ctx context.Context, method, rawURL string, payload any) ([]
 	// 거대한 본문을 보내 bastion 메모리를 고갈시키지 못하도록 상한을 둡니다.
 	data, readErr := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, &APIError{Method: method, URL: rawURL,
+		return nil, nil, &APIError{Method: method, URL: rawURL,
 			StatusCode: resp.StatusCode, Body: string(data)}
 	}
 	if readErr != nil {
-		return nil, fmt.Errorf("응답 본문을 읽지 못했습니다: %s: %w", rawURL, readErr)
+		return nil, nil, fmt.Errorf("응답 본문을 읽지 못했습니다: %s: %w", rawURL, readErr)
 	}
-	return data, nil
+	return data, resp.Header.Clone(), nil
 }
 
 // Get은 리소스를 읽어 out에 디코딩합니다. out이 nil이면 본문을 버립니다.
@@ -355,6 +363,40 @@ func (c *Client) Post(ctx context.Context, ref string, payload any) ([]byte, err
 		return nil, err
 	}
 	return c.do(ctx, http.MethodPost, rawURL, payload)
+}
+
+// PostLocation은 Post와 같고 응답의 Location 헤더를 함께 반환합니다.
+// 비동기 액션(HTTP 202)이 만든 Task를 추적할 때 씁니다. 헤더가 없으면
+// 빈 문자열입니다. 절대 URL은 Resolve와 같은 출처 검증을 거쳐 같은 BMC일
+// 때만 경로로 변환해 반환하고, 다른 호스트를 가리키면 오류입니다(경로만
+// 잘라 쓰면 출처 검증이 무력화되므로 그렇게 하지 않습니다).
+func (c *Client) PostLocation(ctx context.Context, ref string, payload any) ([]byte, string, error) {
+	if payload == nil {
+		payload = map[string]any{}
+	}
+	rawURL, err := c.Resolve(ref)
+	if err != nil {
+		return nil, "", err
+	}
+	data, header, err := c.doWithHeader(ctx, http.MethodPost, rawURL, payload)
+	if err != nil {
+		return nil, "", err
+	}
+	location := strings.TrimSpace(header.Get("Location"))
+	if location == "" {
+		return data, "", nil
+	}
+	resolved, err := c.Resolve(location)
+	if err != nil {
+		return nil, "", fmt.Errorf("응답의 Location 헤더를 사용할 수 없습니다: %w", err)
+	}
+	if u, err := url.Parse(resolved); err == nil && u.Path != "" {
+		location = u.Path
+		if u.RawQuery != "" {
+			location += "?" + u.RawQuery
+		}
+	}
+	return data, location, nil
 }
 
 // Patch는 리소스 속성을 변경합니다.

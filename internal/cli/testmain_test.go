@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 		signal.Notify(sig, os.Interrupt)
 		fmt.Println("helper-ready")
 		<-sig
-		// 인터럽트 후에도 실행 기회를 얻는 정리 코드를 흉내 냅니다.
+		// 인터럽트 후에도 정리 코드가 실행되는 상황을 재현합니다.
 		// 즉시 강제 종료되면 이 줄이 출력되지 못합니다.
 		fmt.Println("helper-cleanup-done")
 		os.Exit(0)

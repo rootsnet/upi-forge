@@ -2,9 +2,9 @@
 //
 // 부팅 요청, 단계별 대기 시간, 인벤토리 문서처럼 장비 종류와 무관한
 // 타입과, 장비별 구현이 채워 넣는 Driver 함수 묶음을 정의합니다.
-// pathset의 bmc.type으로 드라이버를 선택하며, 현재 구현은 idrac(iDRAC10)
-// 하나입니다. 다른 장비를 추가할 때는 그 장비 패키지가 이 계층의 타입으로
-// 결과를 만들어 Driver를 채우고, config.SupportedBMCTypes와 cli의
+// pathset의 bmc.type으로 드라이버를 선택하며, 현재 구현은 idrac(iDRAC10)과
+// idrac9(iDRAC9)입니다. 다른 장비를 추가할 때는 그 장비 패키지가 이 계층의
+// 타입으로 결과를 만들어 Driver를 채우고, config.SupportedBMCTypes와 cli의
 // 드라이버 선택에 종류를 등록합니다.
 //
 // Redfish 클라이언트는 프로토콜 계층(세션, 출처 검증, 응답 상한)만

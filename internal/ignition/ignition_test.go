@@ -128,7 +128,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// fakeButane은 고정된 Ignition JSON을 출력하는 butane 대역 경로를 돌려줍니다.
+// fakeButane은 고정된 Ignition JSON을 출력하는 butane 대역 경로를 반환합니다.
 // 어떤 OS에서도 동작하도록 테스트 바이너리 자신을 사용합니다.
 func fakeButane(t *testing.T, output string) string {
 	t.Helper()

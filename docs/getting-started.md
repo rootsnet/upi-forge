@@ -110,7 +110,11 @@ ISO 안에 들어가므로 부팅만 하면 자동 설치됩니다.
 
 ## 6. 게시와 부팅
 
-### 베어메탈 (iDRAC10)
+### 베어메탈 (iDRAC9 / iDRAC10)
+
+pathset의 `bmc.type`이 장비 세대를 정합니다(생략 시 `idrac10`, iDRAC9
+장비는 `idrac9`). 절차는 두 세대가 같고 도구가 Redfish 경로 차이를
+처리합니다 — [configuration.md](configuration.md)의 `bmc.type` 참고.
 
 ```bash
 # 웹 서버에 게시
@@ -141,6 +145,8 @@ VM 대상으로 간주해 필요한 안내를 출력합니다.
 ```bash
 # 가상 미디어 분리 (ISO로 재부팅되는 것 방지)
 upi-forge eject
+# CSV 없이 한 대만 직접 지정할 때 (iDRAC9 장비는 --bmc-type idrac9 필수)
+upi-forge eject --address 203.0.113.21 --bmc-type idrac9
 
 # 노드 조인 승인 (UPI 공통 절차)
 oc get csr

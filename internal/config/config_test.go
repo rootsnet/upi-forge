@@ -285,6 +285,27 @@ func TestLoadPathsetCopyModeWithoutDNSPasses(t *testing.T) {
 
 // bmc.type을 명시해도 통과해야 하고, 지원 목록의 값과 같아야 합니다.
 func TestLoadPathsetExplicitBMCType(t *testing.T) {
+	// 지원 목록의 모든 종류는 명시 시 그대로 통과해야 합니다.
+	for _, typ := range []string{config.BMCTypeIDRAC10, config.BMCTypeIDRAC9} {
+		root := writeTree(t, map[string]string{
+			"upi-forge.yaml": strings.Replace(minimalConfig, "pathset-3", "p", 1),
+			"pathsets/p/pathset.yaml": "name: p\ndisk:\n  osDisk: /dev/x\n" +
+				"network:\n  gateway: 192.0.2.1\n  dns: [1.1.1.1]\n  activeNIC: eth0\n" +
+				"bmc:\n  type: \"" + typ + "\"\n",
+		})
+		cfg, err := config.Load(filepath.Join(root, "upi-forge.yaml"))
+		if err != nil {
+			t.Fatalf("Load 실패: %v", err)
+		}
+		ps, err := cfg.LoadPathset()
+		if err != nil {
+			t.Fatalf("명시한 %s은(는) 통과해야 합니다: %v", typ, err)
+		}
+		if ps.BMC.Type != typ {
+			t.Errorf("bmc.type: %q", ps.BMC.Type)
+		}
+	}
+	// 기본값 확인은 마지막 pathset(idrac9)으로 이어집니다.
 	root := writeTree(t, map[string]string{
 		"upi-forge.yaml": strings.Replace(minimalConfig, "pathset-3", "p", 1),
 		"pathsets/p/pathset.yaml": "name: p\ndisk:\n  osDisk: /dev/x\n" +
@@ -381,7 +402,7 @@ func TestNodePaths(t *testing.T) {
 // TestWorkspaceEntriesMustStayInsideWorkspace는 설정 실수로 작업 디렉터리
 // 전체나 상위가 삭제되는 사고를 막는 검사를 확인합니다.
 //
-// prepare 단계는 workspace.tmpDir를 os.RemoveAll로 통째로 지웁니다.
+// prepare 단계는 workspace.tmpDir를 os.RemoveAll로 디렉터리 전체를 삭제합니다.
 // tmpDir가 "." 이면 작업 디렉터리 전체가, ".." 이면 그 상위가 사라집니다.
 func TestTmpDirMustStayInsideWorkspace(t *testing.T) {
 	dangerous := map[string]string{

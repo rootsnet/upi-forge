@@ -1,6 +1,6 @@
 package dnscheck
 
-// 와이어 클라이언트를 실제 UDP/TCP 가짜 DNS 서버로 검증합니다.
+// 와이어 클라이언트를 UDP/TCP 테스트 DNS 서버로 검증합니다.
 // 특히 /etc/hosts에 있는 이름(localhost)도 지정한 서버에 질의하는지
 // 확인해, "지정 DNS가 아니라 hosts 결과로 통과"하는 회귀를 막습니다.
 
@@ -15,14 +15,14 @@ import (
 	"time"
 )
 
-// testRR은 가짜 서버가 돌려줄 리소스 레코드 하나입니다.
+// testRR은 테스트 서버가 반환할 리소스 레코드 하나입니다.
 type testRR struct {
 	rtype  uint16
 	ip     net.IP // typeA
 	target string // typePTR
 }
 
-// buildResponse는 질의를 그대로 되돌려주는 형식의 응답을 만듭니다.
+// buildResponse는 질의를 그대로 포함한 응답을 만듭니다.
 func buildResponse(query []byte, rcode int, tc bool, rrs ...testRR) []byte {
 	msg := make([]byte, 0, 512)
 	msg = append(msg, query[0], query[1]) // ID 복사
@@ -53,7 +53,7 @@ func buildResponse(query []byte, rcode int, tc bool, rrs ...testRR) []byte {
 }
 
 // queryName은 질의 메시지에서 이름과 타입을 꺼냅니다.
-// 가짜 서버 고루틴에서 호출되므로 Fatalf 대신 Errorf를 씁니다
+// 테스트 서버 고루틴에서 호출되므로 Fatalf 대신 Errorf를 씁니다.
 // (FailNow는 테스트 고루틴에서만 호출할 수 있습니다).
 func queryName(t *testing.T, query []byte) (string, uint16) {
 	t.Helper()
@@ -65,7 +65,7 @@ func queryName(t *testing.T, query []byte) (string, uint16) {
 	return name, binary.BigEndian.Uint16(query[off : off+2])
 }
 
-// startFakeDNS는 UDP 가짜 DNS 서버를 띄우고 주소를 반환합니다.
+// startFakeDNS는 UDP 테스트 DNS 서버를 시작하고 주소를 반환합니다.
 func startFakeDNS(t *testing.T, handler func(query []byte) []byte) string {
 	t.Helper()
 	pc, err := net.ListenPacket("udp", "127.0.0.1:0")

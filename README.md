@@ -2,7 +2,7 @@
 
 OpenShift 클러스터에 **UPI 방식으로 worker 노드를 추가**하는 작업을
 자동화하는 도구입니다. RHCOS 이미지 준비부터 노드별 Ignition/NMState 생성,
-노드별 설치 ISO 생성, iDRAC10 Redfish Virtual Media 부팅까지 단일 실행
+노드별 설치 ISO 생성, iDRAC9/iDRAC10 Redfish Virtual Media 부팅까지 단일 실행
 파일 하나로 처리합니다.
 
 ```text
@@ -17,7 +17,7 @@ prepare → ignition → iso → (웹 서버 게시) → boot
   실행 전에 검증해, 다른 클러스터의 노드를 부팅하거나 오래된 인증서로
   설치하는 사고를 막습니다.
 - **VM과 베어메탈 공용**: 같은 흐름으로 VM(수동 ISO 마운트)과
-  베어메탈(iDRAC10 자동 부팅)을 모두 지원합니다.
+  베어메탈(iDRAC9/iDRAC10 자동 부팅)을 모두 지원합니다.
 
 > 이 저장소의 예시 도메인(`mycluster.example.com`)과 IP(`192.0.2.x`,
 > `203.0.113.x` — 문서용 예약 대역)는 모두 자리표시자입니다. 환경에 맞게
@@ -32,7 +32,7 @@ prepare → ignition → iso → (웹 서버 게시) → boot
 | `butane` | pathset에 `.bu` 파일이 있을 때만 필요 |
 | `coreos-installer` | `upi-forge prepare`가 release 이미지에서 자동으로 준비 |
 | 웹 서버 | 생성한 ISO와 rootfs를 iDRAC에 제공 (베어메탈/rootfs 모드) |
-| iDRAC | **iDRAC10만 지원** (테스트 기준: PowerEdge R670). iDRAC9 이하는 Redfish 경로가 달라 동작을 보장하지 않습니다. pathset의 `bmc.type`으로 종류를 지정하며 기본값이 `idrac10`입니다 |
+| iDRAC | **iDRAC10**: 실기 검증됨(PowerEdge R670). **iDRAC9**: 현장에서 검증한 Redfish 스크립트 절차를 옮긴 드라이버로, Go 드라이버 자체의 실기 검증은 예정입니다. pathset의 `bmc.type`으로 종류를 지정하며 기본값은 `idrac10`입니다. iDRAC8 이하는 Redfish 경로가 달라 동작을 보장하지 않습니다 |
 
 `jq`, `openssl`, `curl`, `python3` 등은 필요하지 않습니다.
 실행 환경은 Linux를 기준으로 합니다(Windows/macOS는 빌드·개발만 지원).
@@ -114,7 +114,7 @@ upi-forge eject
 | `upi-forge boot [--from HOST] [NODE ...]` | iDRAC Virtual Media로 설치 부팅 |
 | `upi-forge inventory [--from HOST] [NODE ...]` | iDRAC NIC/스토리지 인벤토리 수집 |
 | `upi-forge live-boot [--from HOST] [NODE ...]` | 공용 ISO로 라이브 부팅(하드웨어 실측용) |
-| `upi-forge eject [--from HOST] [NODE ...]` | 가상 미디어 분리 및 정리 |
+| `upi-forge eject [--from HOST] [NODE ...]` | 가상 미디어 분리 및 정리 (`--address IP [--bmc-type idrac9]`로 한 대만 직접 지정 가능) |
 | `upi-forge version` | 빌드 버전 확인 |
 
 각 명령은 `upi-forge <명령> -h`로 상세 도움말을 제공합니다.

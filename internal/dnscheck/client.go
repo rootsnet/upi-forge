@@ -27,7 +27,7 @@ import (
 var errNotFound = errors.New("DNS 레코드가 없습니다")
 
 // rcodeError는 서버가 응답은 했지만 오류 코드(SERVFAIL, REFUSED 등)를
-// 돌려준 경우입니다. 접속 실패(서버 다운)와 달리 서버는 살아 있으므로,
+// 반환한 경우입니다. 접속 실패(서버 다운)와 달리 서버는 살아 있으므로,
 // 노드가 이 서버를 쓰면 이름 해석에 실패합니다. 검증에서 접속 실패처럼
 // 조용히 제외하면 안 됩니다.
 type rcodeError struct {
