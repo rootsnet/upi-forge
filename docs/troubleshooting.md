@@ -14,7 +14,7 @@
 pathset 디렉터리 이름과 `pathset.yaml`의 `name`은 일치해야 합니다.
 
 **`workspace.tmpDir가 작업 디렉터리 밖을 가리킵니다`**
-`tmpDir`는 prepare가 통째로 삭제하는 경로라 작업 디렉터리 안으로
+`tmpDir`는 prepare가 디렉터리 전체를 삭제하는 경로라 작업 디렉터리 안으로
 제한됩니다(심볼릭 링크로 밖을 가리키는 경우 포함). 설정을 확인하세요.
 
 ## prepare
@@ -92,6 +92,39 @@ iDRAC의 활성 세션이 가득 찼습니다. iDRAC 웹 UI에서 미사용 세�
 세션 수가 줄지 않으면 BMC의 활성 세션을 직접 확인하세요. 다른 도구가
 남긴 세션은 UPI Forge에서 확인할 수 없습니다.
 
+**`Virtual Media 장치 목록을 조회하지 못했습니다 … (HTTP 404)`** (iDRAC9)
+`eject --address`로 iDRAC9 장비를 지정하면서 `--bmc-type idrac9`를 생략하면
+iDRAC10 경로를 조회해 404가 납니다. CSV 경로에서는 pathset의 `bmc.type`을
+확인하세요. iDRAC9 드라이버는 System이 광고한 경로 → `Systems` 표준 경로
+→ `Managers` 구형 경로 순으로 404일 때만 다음 후보를 시도하며, 그 밖의
+오류(인증·서버 오류)는 실제 문제로 보고 중단합니다.
+
+**`SCP Import 작업이 … 끝나지 않았습니다` / `… 실패했습니다`** (iDRAC9)
+iDRAC9의 원타임 부트 설정은 SCP Import 작업으로 이루어집니다. 도구는
+작업 상태가 `Completed`이고, `PercentComplete`를 제공하는 펌웨어에서는
+진행률이 100%가 된 뒤에만 전원을 켭니다. 작업이 실패
+(`Exception`, `CompletedWithErrors`, `TaskStatus=Critical` 등)하거나
+5분 안에 끝나지 않으면 전원을 켜지 않고 중단합니다. 메시지에 나온 작업
+경로(`/redfish/v1/TaskService/Tasks/JID_…`)를 iDRAC Job Queue에서 확인해
+정리한 뒤 해당 노드만 다시 실행하세요(`upi-forge boot <hostname>`).
+중단 시점에 서버는 꺼진 상태로 남으며, 재실행은 꺼진 서버에 전원 끄기를
+다시 보내지 않으므로 그대로 이어서 실행하면 됩니다.
+작업 조회가 401/403이면 iDRAC 계정 권한을 확인하세요(SCP Import에는
+Configure 권한이 필요합니다).
+
+**`부트 설정을 확인하지 못했습니다`** (iDRAC9)
+작업 위치를 알 수 없는 펌웨어에서 결과 속성(DellAttributes)을 읽어
+확인하는 경로가 인증·서버 오류나 응답 지연으로 실패한 경우입니다.
+`redfish.attributeWaitSeconds`를 늘리거나 iDRAC 상태를 확인한 뒤 다시
+실행하세요. 확인 경로 자체가 없는 구형 펌웨어(HTTP 404)는 경고만 남기고
+진행하므로, 이때는 iDRAC Virtual Console에서 ISO 부팅을 직접 확인하세요.
+
+**`부트 순서 Settings 리소스가 없어 … 건너뜁니다`** (iDRAC9)
+평상시 부트 순서에서 가상 CD/DVD를 빼는 보호 단계를 이 펌웨어에서는
+수행할 수 없어 건너뛴 것입니다. 설치는 원타임 부트로 정상 진행되며,
+설치 후 `upi-forge eject`와 BIOS 부트 순서 확인이 ISO 재부팅의
+방어선입니다.
+
 **중간 노드에서 실패**
 실패 시점에 `--from <hostname>` 재개 명령이 안내됩니다. 원래 실행에
 쓴 옵션(`--skip-iso-check` 등)도 안내에 포함됩니다.
@@ -100,7 +133,7 @@ iDRAC의 활성 세션이 가득 찼습니다. iDRAC 웹 UI에서 미사용 세�
 나머지 노드는 끝까지 진행되고, 마지막에 실패 노드 목록과 그 노드만
 다시 실행하는 명령(예: `upi-forge boot worker5 worker7`)이 안내됩니다.
 원인은 pathset의 `logs/<명령>-<실행시각>-<고유값>/<hostname>.log`에서
-확인하세요 — 순차 실행에서 화면에 나오던 노드별 출력 전체가 그대로
+확인하세요. 순차 실행에서 화면에 표시되는 노드별 출력 전체가
 들어 있습니다(`--debug`를 켰다면 상세도 포함). 병렬에서는 실패가
 순서와 무관하게 흩어지므로 `--from`이 아니라 NODE 인자로 재시도합니다.
 
@@ -125,7 +158,7 @@ oc adm certificate approve <csr-name>   # 보통 노드당 2회
 
 **로그를 더 보고 싶을 때 — `--debug`**
 전역 옵션 `--debug`(또는 설정의 `logger.debug: true`)를 켜면 도구가
-실제로 무엇을 실행하는지 그대로 보입니다.
+실행하는 명령과 Redfish 요청을 확인할 수 있습니다.
 
 - 모든 외부 명령을 실행 직전에 인자까지 출력: `debug: 실행: oc adm release extract ...`,
   `debug: 실행: coreos-installer iso customize ...`

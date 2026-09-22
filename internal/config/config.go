@@ -319,7 +319,7 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// tmpDir는 prepare 단계에서 os.RemoveAll로 통째로 지워지는 경로입니다.
+	// tmpDir는 prepare 단계에서 os.RemoveAll로 디렉터리 전체가 삭제되는 경로입니다.
 	// "." 이나 ".." 로 잘못 적으면 작업 디렉터리 전체나 그 상위가 사라지므로,
 	// 실행 전에 작업 디렉터리 안쪽을 가리키는지 확인합니다.
 	//
@@ -328,7 +328,7 @@ func (c *Config) Validate() error {
 	return validateRemovableDir("workspace.tmpDir", c.Workspace.TmpDir)
 }
 
-// validateRemovableDir는 통째로 삭제되는 디렉터리가 작업 디렉터리 하위인지 확인합니다.
+// validateRemovableDir는 전체가 삭제되는 디렉터리가 작업 디렉터리 하위인지 확인합니다.
 // 절대 경로, 상위로 올라가는 경로, 현재 디렉터리 자신은 모두 거부합니다.
 func validateRemovableDir(key, value string) error {
 	if strings.TrimSpace(value) == "" {
@@ -462,7 +462,7 @@ func (c *Config) Paths() (Paths, error) {
 		WorkspaceInstaller: workspaceInstaller,
 	}
 
-	// tmpDir는 통째로 삭제되므로 계산된 절대 경로도 다시 확인합니다.
+	// tmpDir는 디렉터리 전체가 삭제되므로 계산된 절대 경로도 다시 확인합니다.
 	if err := insideWorkspace("workspace.tmpDir", dir, paths.TmpDir); err != nil {
 		return Paths{}, err
 	}

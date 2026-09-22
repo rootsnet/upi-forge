@@ -12,7 +12,7 @@ import (
 	"upi-forge/internal/logx"
 )
 
-// fetchCASource는 테스트에서 가짜 MCS 응답을 주입하기 위한 간접 호출입니다.
+// fetchCASource는 테스트에서 MCS 응답 대역을 주입하기 위한 간접 호출입니다.
 var fetchCASource = ignition.FetchCASource
 
 const isoUsage = `upi-forge iso - 노드별 설치 ISO를 생성합니다.

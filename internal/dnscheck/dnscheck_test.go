@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// fakeQuerier는 서버 하나의 정방향/역방향 응답을 맵으로 흉내 냅니다.
+// fakeQuerier는 서버 하나의 정방향/역방향 응답을 맵으로 재현합니다.
 // 맵에 없는 이름은 "레코드 없음"(errNotFound) 응답입니다.
 type fakeQuerier struct {
 	forward map[string][]string // fqdn -> IP 목록

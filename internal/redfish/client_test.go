@@ -63,7 +63,7 @@ func TestResolveAcceptsSameOriginAbsoluteURL(t *testing.T) {
 }
 
 // TestResolveRejectsForeignOrigin은 손상되었거나 악의적인 BMC가
-// 외부 호스트를 가리키는 참조를 돌려줬을 때 세션 토큰이 그쪽으로
+// 외부 호스트를 가리키는 참조를 반환했을 때 세션 토큰이 해당 호스트로
 // 나가지 않는지 확인합니다.
 func TestResolveRejectsForeignOrigin(t *testing.T) {
 	c := redfish.New("198.51.100.110", redfish.Options{})
@@ -114,7 +114,7 @@ func TestGetRejectsForeignOdataID(t *testing.T) {
 	}
 	defer c.Logout()
 
-	// BMC가 외부 호스트를 가리키는 @odata.id를 돌려준 상황입니다.
+	// BMC가 외부 호스트를 가리키는 @odata.id를 반환한 상황입니다.
 	err := c.Get(ctx, foreign.URL+"/redfish/v1/Systems", nil)
 	if !errors.Is(err, redfish.ErrForeignOrigin) {
 		t.Fatalf("외부 호스트 참조는 거부해야 합니다: %v", err)
@@ -205,5 +205,60 @@ func TestRedirectWithinSameOriginIsFollowed(t *testing.T) {
 	}
 	if out.ID != "ok" {
 		t.Errorf("응답을 받지 못했습니다: %+v", out)
+	}
+}
+
+// PostLocation은 비동기 액션(HTTP 202)의 Location 헤더를 경로로 반환하고,
+// 헤더가 없으면 빈 문자열을 반환해야 합니다. 절대 URL은 경로만 남깁니다.
+func TestPostLocationReturnsTaskPath(t *testing.T) {
+	var idrac *httptest.Server
+	idrac = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/redfish/v1/SessionService/Sessions":
+			w.Header().Set("X-Auth-Token", "tok")
+			w.Header().Set("Location", "/redfish/v1/SessionService/Sessions/1")
+			w.WriteHeader(http.StatusCreated)
+		case r.URL.Path == "/redfish/v1/Actions/Async":
+			w.Header().Set("Location", idrac.URL+"/redfish/v1/TaskService/Tasks/JID_7")
+			w.WriteHeader(http.StatusAccepted)
+		case r.URL.Path == "/redfish/v1/Actions/Foreign":
+			w.Header().Set("Location", "https://bmc.other.example.com/redfish/v1/TaskService/Tasks/JID_8")
+			w.WriteHeader(http.StatusAccepted)
+		case r.URL.Path == "/redfish/v1/Actions/Sync":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{}`))
+		case r.URL.Path == "/redfish/v1/Actions/Rejected":
+			w.WriteHeader(http.StatusBadRequest)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer idrac.Close()
+
+	c := redfish.New(hostOf(idrac), redfish.Options{Timeout: 5 * time.Second})
+	ctx := context.Background()
+	if err := c.Login(ctx, "root", "secret"); err != nil {
+		t.Fatalf("Login 실패: %v", err)
+	}
+	defer c.Logout()
+
+	_, location, err := c.PostLocation(ctx, "/redfish/v1/Actions/Async", nil)
+	if err != nil {
+		t.Fatalf("PostLocation 실패: %v", err)
+	}
+	if location != "/redfish/v1/TaskService/Tasks/JID_7" {
+		t.Errorf("Location은 경로로 정규화되어야 합니다: %q", location)
+	}
+	if _, location, err = c.PostLocation(ctx, "/redfish/v1/Actions/Sync", nil); err != nil || location != "" {
+		t.Errorf("Location 헤더가 없으면 빈 문자열이어야 합니다: %q, %v", location, err)
+	}
+	if _, _, err = c.PostLocation(ctx, "/redfish/v1/Actions/Rejected", nil); err == nil {
+		t.Error("2xx가 아닌 응답은 오류여야 합니다")
+	}
+	// 다른 호스트를 가리키는 Location은 경로만 잘라 쓰지 말고 거부해야
+	// 합니다(출처 검증 우회 금지).
+	_, location, err = c.PostLocation(ctx, "/redfish/v1/Actions/Foreign", nil)
+	if !errors.Is(err, redfish.ErrForeignOrigin) || location != "" {
+		t.Errorf("다른 출처의 Location은 ErrForeignOrigin이어야 합니다: %q, %v", location, err)
 	}
 }

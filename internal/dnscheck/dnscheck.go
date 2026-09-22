@@ -36,7 +36,7 @@ import (
 const defaultTimeout = 5 * time.Second
 
 // Querier는 DNS 서버 하나에 대한 조회 두 가지입니다.
-// 실제 구현은 client.go에 있고, 테스트에서는 가짜 구현을 주입합니다.
+// 실제 구현은 client.go에 있고, 테스트에서는 테스트 대역을 주입합니다.
 type Querier interface {
 	// QueryA는 A 레코드 IP 목록을 반환합니다. 레코드가 없으면 errNotFound.
 	QueryA(ctx context.Context, fqdn string) ([]net.IP, error)
@@ -170,7 +170,7 @@ func (c *Checker) checkForward(ctx context.Context, fqdn, ip string) error {
 			problems = append(problems, fmt.Errorf("정방향 실패: %s의 DNS 레코드가 없습니다 (서버 %s)", fqdn, server.Address))
 		case abnormalResponse(err):
 			// 서버가 살아서 오류 코드(SERVFAIL 등)나 해석 불가능한 응답을
-			// 돌려준 경우는 접속 실패가 아니라 검증 실패입니다. 노드가 이
+			// 반환한 경우는 접속 실패가 아니라 검증 실패입니다. 노드가 이
 			// 서버를 쓰면 이름 해석에 실패하므로 제외하고 넘어가면 안
 			// 됩니다.
 			answered = true

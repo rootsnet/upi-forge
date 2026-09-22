@@ -16,7 +16,7 @@ import (
 	"upi-forge/internal/logx"
 )
 
-// runISOProvenance는 iso를 실행하고 오류를 돌려줍니다.
+// runISOProvenance는 iso를 실행하고 오류를 반환합니다.
 // fakeCA가 비어 있지 않으면 MCS 인증서 조회를 그 값으로 대체하고,
 // 비어 있으면 --skip-ca-check로 실행합니다.
 func runISOProvenance(t *testing.T, configPath, fakeCA string) error {
@@ -107,7 +107,7 @@ func TestISOAcceptsRotatedServingCertSameCA(t *testing.T) {
 	}
 }
 
-// 인증서 체인이 완전히 같으면 당연히 통과합니다.
+// 인증서 체인이 완전히 같을 때도 통과해야 합니다.
 func TestISOAcceptsMatchingCA(t *testing.T) {
 	configPath := isoGuidanceEnv(t, false, false)
 

@@ -1,7 +1,7 @@
 package cli
 
 // BMC를 쓰는 네 명령(boot, live-boot, eject, inventory)이 실제로
-// bmc.type으로 선택된 드라이버를 호출하는지 가짜 드라이버로 고정합니다.
+// bmc.type으로 선택된 드라이버를 호출하는지 테스트 드라이버로 고정합니다.
 // 어느 명령이든 선택된 드라이버를 지나치고 특정 장비 함수를 직접 호출하도록
 // 바뀌면 여기서 실패합니다.
 
@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -95,12 +97,12 @@ network:
 	return filepath.Join(configDir, "upi-forge.yaml")
 }
 
-// bmcCallCounts는 가짜 드라이버의 호출 횟수입니다.
+// bmcCallCounts는 테스트 드라이버의 호출 횟수입니다.
 type bmcCallCounts struct {
 	boot, eject, nic, storage int
 }
 
-// installFakeBMC는 드라이버 선택과 세션 생성을 가짜로 바꿉니다.
+// installFakeBMC는 드라이버 선택과 세션 생성을 테스트 대역으로 바꿉니다.
 // 세션을 실제로 만들지 않으므로 작업 함수 호출 여부만 남습니다.
 func installFakeBMC(t *testing.T) *bmcCallCounts {
 	t.Helper()
@@ -205,5 +207,50 @@ func TestInventoryDispatchesToSelectedBMC(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(outDir, name)); err != nil {
 			t.Errorf("인벤토리 결과 파일이 저장되어야 합니다: %s: %v", name, err)
 		}
+	}
+}
+
+// --address 직접 지정 경로는 --bmc-type으로 드라이버를 골라야 합니다.
+// 기본값은 idrac10이고, 지원 목록 밖의 값은 거부합니다.
+func TestEjectAddressSelectsDriverByBMCType(t *testing.T) {
+	configPath := bmcCommandEnv(t)
+	calls := installFakeBMC(t)
+
+	// 어떤 종류가 선택 함수에 전달되는지 기록합니다.
+	var selected []string
+	origDriver := bmcDriverFor
+	t.Cleanup(func() { bmcDriverFor = origDriver })
+	recording := bmcDriverFor
+	bmcDriverFor = func(ps *config.Pathset) (*bmc.Driver, error) {
+		selected = append(selected, ps.BMC.Type)
+		return recording(ps)
+	}
+
+	if err := runBMCCommand(t, configPath, "eject", "--address", "192.0.2.250"); err != nil {
+		t.Fatalf("eject --address 실패: %v", err)
+	}
+	if err := runBMCCommand(t, configPath, "eject", "--address", "192.0.2.250", "--bmc-type", "idrac9"); err != nil {
+		t.Fatalf("eject --address --bmc-type idrac9 실패: %v", err)
+	}
+	if want := []string{config.BMCTypeIDRAC10, config.BMCTypeIDRAC9}; !slices.Equal(selected, want) {
+		t.Errorf("--bmc-type에 따라 드라이버를 골라야 합니다: got=%v want=%v", selected, want)
+	}
+	if calls.eject != 2 {
+		t.Errorf("선택된 드라이버의 Eject가 2회 호출되어야 합니다: %d", calls.eject)
+	}
+
+	err := runBMCCommand(t, configPath, "eject", "--address", "192.0.2.250", "--bmc-type", "ilo5")
+	if err == nil || !strings.Contains(err.Error(), "--bmc-type") {
+		t.Errorf("지원하지 않는 --bmc-type은 거부해야 합니다: %v", err)
+	}
+	// CSV 경로에서 --bmc-type/--username은 무시되지 않고 오류여야 합니다
+	// (종류는 pathset, 계정은 idracs.csv가 정함).
+	err = runBMCCommand(t, configPath, "eject", "--bmc-type", "idrac9")
+	if err == nil || !strings.Contains(err.Error(), "--address") {
+		t.Errorf("--address 없는 --bmc-type은 거부해야 합니다: %v", err)
+	}
+	err = runBMCCommand(t, configPath, "eject", "--username", "admin")
+	if err == nil || !strings.Contains(err.Error(), "--username") {
+		t.Errorf("--address 없는 --username은 거부해야 합니다: %v", err)
 	}
 }

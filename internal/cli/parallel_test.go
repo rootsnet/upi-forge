@@ -1,7 +1,7 @@
 package cli
 
 // bmc.parallel의 병렬 실행 흐름을 하위 프로세스 없이 고정합니다.
-// launchWorker를 가짜로 바꿔 "어떤 노드가 어떤 인자·환경으로 실행되는지",
+// launchWorker를 테스트 대역으로 바꿔 "어떤 노드가 어떤 인자·환경으로 실행되는지",
 // "동시 실행이 한도를 넘지 않는지", "일부 실패 시 나머지가 끝까지 도는지"를
 // 검증합니다. 실제 하위 프로세스 실행 자체는 이 바이너리의 일반 순차 경로라
 // 기존 디스패치 테스트가 커버합니다.
@@ -26,15 +26,15 @@ import (
 	"upi-forge/internal/redfish"
 )
 
-// fakeWorkerRun은 가짜 launchWorker가 기록한 호출 하나입니다.
+// fakeWorkerRun은 launchWorker 테스트 대역이 기록한 호출 하나입니다.
 type fakeWorkerRun struct {
 	argv    []string
 	env     []string
 	logPath string
 }
 
-// installFakeWorker는 launchWorker를 기록용 가짜로 바꿉니다.
-// failHosts에 있는 노드는 실패를 흉내 냅니다.
+// installFakeWorker는 launchWorker를 기록용 테스트 대역으로 바꿉니다.
+// failHosts에 있는 노드는 실패 상황을 재현합니다.
 func installFakeWorker(t *testing.T, failHosts ...string) *struct {
 	sync.Mutex
 	runs          []fakeWorkerRun
@@ -70,7 +70,7 @@ func installFakeWorker(t *testing.T, failHosts ...string) *struct {
 			state.Unlock()
 		}()
 		if slices.Contains(failHosts, host) {
-			return fmt.Errorf("가짜 실패")
+			return fmt.Errorf("테스트 실패")
 		}
 		return nil
 	}
@@ -288,7 +288,7 @@ func TestSequentialNodeSelectedFailureHintsRetryWithNodes(t *testing.T) {
 	withSession = func(ctx context.Context, cfg *config.Config, target csvdata.IDRAC,
 		password string, fn func(client *redfish.Client) error) error {
 		if target.Hostname == "worker2" {
-			return fmt.Errorf("가짜 세션 실패")
+			return fmt.Errorf("테스트 세션 실패")
 		}
 		return fn(nil)
 	}

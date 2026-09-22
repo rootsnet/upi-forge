@@ -14,6 +14,7 @@ import (
 	"upi-forge/internal/config"
 	"upi-forge/internal/csvdata"
 	"upi-forge/internal/idrac"
+	"upi-forge/internal/idrac9"
 	"upi-forge/internal/logx"
 	"upi-forge/internal/prompt"
 	"upi-forge/internal/redfish"
@@ -30,21 +31,24 @@ func flagError(err error) error {
 // bmcDriverFor는 pathset의 bmc.type에 맞는 드라이버를 선택합니다.
 // idracs.csv 형식(hostname, address, username)은 장비 종류와 무관하게
 // 공통이지만, 리소스 경로와 부팅 절차는 장비마다 다르므로 여기서 갈립니다.
-// 각 명령이 선택된 드라이버를 실제로 호출하는지 가짜 드라이버로 고정하는
+// 각 명령이 선택된 드라이버를 실제로 호출하는지 테스트 드라이버로 고정하는
 // 테스트를 위해 변수입니다.
 var bmcDriverFor = resolveBMCDriver
 
 // resolveBMCDriver는 bmc.type과 드라이버의 대응 목록입니다.
 // 다른 장비를 추가할 때는 config.SupportedBMCTypes에 종류를 등록하고
 // 여기에 그 장비 패키지의 드라이버를 연결합니다(bmc.Driver 참고).
-// boot/eject/inventory 명령 도움말(usage)은 현재 유일한 지원 장비인
-// iDRAC 기준으로 쓰여 있으므로, 그때 도움말도 함께 고쳐야 합니다.
+// boot/eject/inventory 명령 도움말(usage)은 iDRAC 기준으로 쓰여 있습니다.
+// 현재 지원 장비(idrac10, idrac9)는 모두 iDRAC이라 그대로 맞지만,
+// 다른 제조사 장비를 추가할 때는 도움말도 함께 고쳐야 합니다.
 // 알 수 없는 종류는 설정 검증(Pathset.Validate)이 먼저 거르므로
 // 여기 도달하면 두 목록이 어긋난 것입니다.
 func resolveBMCDriver(ps *config.Pathset) (*bmc.Driver, error) {
 	switch ps.BMC.Type {
 	case config.BMCTypeIDRAC10:
 		return idrac.Driver(), nil
+	case config.BMCTypeIDRAC9:
+		return idrac9.Driver(), nil
 	default:
 		return nil, fmt.Errorf("bmc.type %q의 구현이 없습니다 (선택 pathset: %s, 지원: %s)",
 			ps.BMC.Type, ps.Name, strings.Join(config.SupportedBMCTypes, ", "))
