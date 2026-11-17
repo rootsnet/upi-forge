@@ -1,5 +1,7 @@
 # 설정 레퍼런스
 
+**한국어** | [English](configuration.en.md)
+
 설정은 두 층입니다.
 
 - `upi-forge.yaml` — 클러스터·레지스트리·웹 서버 등 **공통 설정**

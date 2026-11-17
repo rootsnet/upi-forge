@@ -1,8 +1,8 @@
 package cli
 
-// `upi-forge ignition`이 산출물 생성 전에 DNS 등록 검증을 실제로 수행하는지,
-// --skip-dns-check가 검증만 건너뛰는지 고정하는 배선(wiring) 테스트입니다.
-// dnscheck 패키지의 검증 규칙 자체는 dnscheck_test.go가 고정합니다.
+// `upi-forge ignition`이 산출물 생성 전에 DNS 등록을 검증하고,
+// --skip-dns-check로 DNS 검증만 건너뛰는지 확인합니다.
+// DNS 검증 규칙 자체는 dnscheck_test.go에서 검증합니다.
 
 import (
 	"bytes"
@@ -118,8 +118,8 @@ func runIgnitionCapture(t *testing.T, configPath string, extra ...string) (strin
 	return out.String(), err
 }
 
-// DNS 검증이 산출물 생성 전에 실행되어 실패를 막아야 합니다.
-// 이 배선을 제거하면 오류가 사전 점검(oc) 단계의 것으로 바뀌어 실패합니다.
+// DNS 검증에 실패하면 산출물을 생성하기 전에 중단하는지 확인합니다.
+// 검증 호출이 빠지면 oc 사전 점검 오류가 발생하므로 테스트가 실패합니다.
 func TestIgnitionRunsDNSCheck(t *testing.T) {
 	out, err := runIgnitionCapture(t, ignitionEnv(t))
 	if err == nil {
@@ -134,8 +134,8 @@ func TestIgnitionRunsDNSCheck(t *testing.T) {
 	}
 }
 
-// --skip-dns-check는 DNS 검증만 건너뛰고 나머지 단계는 그대로 진행합니다.
-// (다음 단계인 클러스터 사전 점검이 없는 oc 경로로 실패하는 것으로 확인)
+// --skip-dns-check가 DNS 검증만 건너뛰고 다음 단계로 진행하는지 확인합니다.
+// 존재하지 않는 oc 경로를 사용해 클러스터 사전 점검 오류로 구분합니다.
 func TestIgnitionSkipDNSCheck(t *testing.T) {
 	out, err := runIgnitionCapture(t, ignitionEnv(t), "--skip-dns-check")
 	if err == nil {

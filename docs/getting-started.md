@@ -1,5 +1,7 @@
 # 전체 워크플로
 
+**한국어** | [English](getting-started.en.md)
+
 UPI Forge로 OpenShift 클러스터에 worker 노드를 추가하는 전 과정입니다.
 예시의 도메인·IP는 자리표시자이므로 환경에 맞게 바꿔 읽으세요.
 

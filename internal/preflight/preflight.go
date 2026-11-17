@@ -69,7 +69,7 @@ func Check(ctx context.Context, ocPath, expectedServer string) (Result, error) {
 }
 
 // ClusterVersion은 현재 로그인한 클러스터의 OpenShift 버전을 조회합니다.
-// 설정의 cluster.version이 비어 있을 때 사용합니다.
+// 자동 버전 선택과 설정의 cluster.version이 실제 버전과 일치하는지 확인할 때 사용합니다.
 func ClusterVersion(ctx context.Context, ocPath string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
@@ -85,4 +85,20 @@ func ClusterVersion(ctx context.Context, ocPath string) (string, error) {
 		return "", fmt.Errorf("조회한 OpenShift 버전이 비어 있습니다. 설정의 cluster.version을 확인하세요")
 	}
 	return version, nil
+}
+
+// DesiredImage는 현재 로그인한 클러스터가 보고하는 desired release 이미지
+// 참조를 조회합니다(status.desired.image). 폐쇄망에서 이 값은 미러 주소일
+// 수도, 원본 인터넷 주소일 수도 있습니다. 호출 전에 대상 클러스터 일치를
+// 반드시 확인해야 합니다(Check).
+func DesiredImage(ctx context.Context, ocPath string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	out, err := execx.Output(ctx, ocPath, "get", "clusterversion",
+		"-o", "jsonpath={.items[0].status.desired.image}")
+	if err != nil {
+		return "", fmt.Errorf("현재 클러스터에서 desired release 이미지를 조회하지 못했습니다: %w", err)
+	}
+	return strings.TrimSpace(out), nil
 }

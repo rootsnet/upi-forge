@@ -1,5 +1,7 @@
 # 자주 만나는 오류와 대처
 
+**한국어** | [English](troubleshooting.en.md)
+
 오류 메시지 자체에 확인할 항목이 안내되지만, 상황별 배경을 함께 정리합니다.
 검증 관련 오류(도메인·DNS·산출물 출처)는 [validation.md](validation.md)를
 먼저 보세요.

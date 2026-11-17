@@ -1,5 +1,7 @@
 # UPI Forge
 
+**한국어** | [English](README.en.md)
+
 OpenShift 클러스터에 **UPI 방식으로 worker 노드를 추가**하는 작업을
 자동화하는 도구입니다. RHCOS 이미지 준비부터 노드별 Ignition/NMState 생성,
 노드별 설치 ISO 생성, iDRAC9/iDRAC10 Redfish Virtual Media 부팅까지 단일 실행
