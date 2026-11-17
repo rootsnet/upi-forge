@@ -44,7 +44,7 @@ type BMC struct {
 	// 한 번만 입력받습니다. 노드별 환경 변수는 이 경우 무시됩니다.
 	SamePassword bool
 	// Parallel은 BMC 명령(boot, live-boot, eject, inventory)의 동시 실행
-	// 노드 수 상한입니다. 0 또는 1이면 지금까지처럼 순서대로 처리합니다.
+	// 노드 수 상한입니다. 0 또는 1이면 순서대로 처리합니다.
 	// 2 이상이면 노드마다 하위 프로세스를 띄워 병렬로 처리하고, 노드별
 	// 출력은 pathset의 logs/ 아래 파일로 남깁니다.
 	Parallel int

@@ -41,8 +41,8 @@ type Waits struct {
 }
 
 // Driver는 장비 종류 하나의 BMC 작업 구현입니다.
-// 함수 필드는 모두 필수이며, cli 테스트가 등록된 드라이버의 완전성을
-// 고정합니다.
+// 함수 필드는 모두 필수이며, cli 테스트에서 등록된 드라이버의 필수 함수가
+// 모두 설정되어 있는지 확인합니다.
 type Driver struct {
 	// Boot는 지정한 ISO로 서버를 원타임 가상 미디어 부팅합니다.
 	Boot func(ctx context.Context, c *redfish.Client, req BootRequest) error

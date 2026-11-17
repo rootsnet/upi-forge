@@ -1,7 +1,7 @@
 package cli
 
-// pathset의 bmc.type으로 BMC 드라이버를 선택하는 배선을 고정합니다.
-// bmc.type 값 자체의 검증(기본값, 오타 거부)은 config 테스트가 고정합니다.
+// pathset의 bmc.type에 맞는 BMC 드라이버를 선택하는지 확인합니다.
+// bmc.type의 기본값과 미지원 값 거부는 config 테스트에서 검증합니다.
 
 import (
 	"strings"

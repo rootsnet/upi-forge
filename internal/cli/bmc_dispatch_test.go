@@ -1,9 +1,8 @@
 package cli
 
-// BMC를 쓰는 네 명령(boot, live-boot, eject, inventory)이 실제로
-// bmc.type으로 선택된 드라이버를 호출하는지 테스트 드라이버로 고정합니다.
-// 어느 명령이든 선택된 드라이버를 지나치고 특정 장비 함수를 직접 호출하도록
-// 바뀌면 여기서 실패합니다.
+// BMC를 쓰는 네 명령(boot, live-boot, eject, inventory)이 bmc.type으로 선택된
+// 드라이버를 호출하는지 테스트용 드라이버로 확인합니다. 선택된 드라이버를
+// 거치지 않고 특정 장비 함수를 직접 호출하면 테스트가 실패합니다.
 
 import (
 	"bytes"
@@ -197,8 +196,7 @@ func TestInventoryDispatchesToSelectedBMC(t *testing.T) {
 			calls.nic, calls.storage)
 	}
 
-	// 수집 결과는 NIC·스토리지 각각 YAML과 JSON 두 형식으로 저장되어야
-	// 합니다. 저장 배선이 빠지면 여기서 실패합니다.
+	// NIC·스토리지 수집 결과가 각각 YAML과 JSON 두 형식으로 저장되는지 확인합니다.
 	outDir := filepath.Join(filepath.Dir(configPath), "pathsets", "demo", "inventory", "worker1")
 	for _, name := range []string{
 		"nic-inventory.yaml", "nic-inventory.json",

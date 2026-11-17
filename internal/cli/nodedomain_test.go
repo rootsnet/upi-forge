@@ -1,7 +1,7 @@
 package cli
 
-// 도메인 검사가 ignition뿐 아니라 iso/boot에도 배선되어 있는지, 그리고
-// 배포용 예시 configs가 자기모순이 아닌지 고정합니다.
+// 도메인 검사가 ignition뿐 아니라 iso/boot에서도 실행되는지 확인합니다.
+// 배포용 예시 configs의 설정과 노드 정보가 일치하는지도 검증합니다.
 
 import (
 	"bytes"

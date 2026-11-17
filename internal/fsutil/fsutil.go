@@ -1,10 +1,10 @@
 // Package fsutil은 산출물을 안전하게 생성하고 교체하기 위한 파일 유틸리티를
 // 제공합니다. 주요 안전 규칙은 다음과 같습니다.
 //
-//   - 기존 Ignition과 ISO는 절대 덮어쓰지 않는다.
-//   - NMState YAML은 내용이 같을 때만 재사용하고, 다르면 중단한다.
-//   - full ISO와 coreos-installer는 교체 전에 백업하고, 실패하면 되돌린다.
-//   - 파일은 임시 파일에 다 쓴 뒤 rename으로 원자적으로 옮긴다.
+//   - 기존 Ignition과 ISO는 절대 덮어쓰지 않습니다.
+//   - NMState YAML은 내용이 같을 때만 재사용하고, 다르면 중단합니다.
+//   - full ISO와 coreos-installer는 교체 전에 백업하고, 실패하면 되돌립니다.
+//   - 파일은 임시 파일에 모두 쓴 뒤 rename으로 원자적으로 옮깁니다.
 package fsutil
 
 import (
